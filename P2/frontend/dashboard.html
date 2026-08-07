@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>P2 - Confirmación de acceso</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>✅ Login exitoso</h1>
+      <p id="welcome">Cargando datos de la sesión…</p>
+      <dl id="user-info" class="user-info"></dl>
+
+      <section>
+        <h2>Probar rutas protegidas</h2>
+        <div class="route-tests">
+          <button id="test-route1">GET /protected/route1 (solo Admin)</button>
+          <button id="test-route2">GET /protected/route2 (Admin y Cliente)</button>
+        </div>
+        <pre id="route-result"></pre>
+      </section>
+
+      <button id="logout">Cerrar sesión</button>
+    </main>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

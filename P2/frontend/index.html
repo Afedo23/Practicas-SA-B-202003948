@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>P2 - Acceso</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Iniciar sesión</button>
+        <button class="tab" data-tab="register">Registrarse</button>
+      </div>
+
+      <form id="login-form" class="panel active">
+        <h1>Iniciar sesión</h1>
+        <label>Correo<input type="email" name="email" required /></label>
+        <label>Contraseña<input type="password" name="password" required minlength="8" /></label>
+        <button type="submit">Entrar</button>
+        <p class="error" id="login-error"></p>
+      </form>
+
+      <form id="register-form" class="panel">
+        <h1>Registrarse</h1>
+        <label>Nombre<input type="text" name="name" required minlength="2" /></label>
+        <label>Correo<input type="email" name="email" required /></label>
+        <label>Contraseña<input type="password" name="password" required minlength="8" /></label>
+        <label
+          >Rol
+          <select name="role">
+            <option value="CLIENTE">Cliente</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </label>
+        <button type="submit">Crear cuenta</button>
+        <p class="hint">El rol es solo para pruebas de la práctica.</p>
+        <p class="error" id="register-error"></p>
+      </form>
+    </main>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

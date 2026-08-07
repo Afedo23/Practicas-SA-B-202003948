@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CLIENTE
+}
+
+// nombre y correo se guardan cifrados con AES-256-GCM (ver src/crypto/aes.service.ts).
+// emailHash es un HMAC determinístico del correo en minúsculas, usado únicamente
+// para poder buscar/indexar por correo sin exponer el valor en texto plano.
+// password NO se cifra con AES (un cifrado reversible de contraseñas es inseguro
+// porque cualquiera con la clave AES podría recuperarlas); se guarda como hash
+// bcrypt de una sola vía, que es la práctica recomendada para contraseñas.
+model User {
+  id           String   @id @default(uuid())
+  nameCipher   String
+  emailCipher  String
+  emailHash    String   @unique
+  passwordHash String
+  role         Role     @default(CLIENTE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}

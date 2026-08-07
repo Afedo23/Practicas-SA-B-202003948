@@ -1,0 +1,26 @@
+{
+  "name": "authorization-service",
+  "version": "0.0.1",
+  "description": "Microservicio independiente de autorización: recibe {token, route} y responde {allowed}",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:dev": "ts-node-dev --respawn src/main.ts"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.7",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.3"
+  }
+}
