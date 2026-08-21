@@ -1,0 +1,241 @@
+{
+  "info": {
+    "name": "Practica 4 - Sistema de Solicitudes (via API Gateway) - Actualizada",
+    "description": "Contrato de endpoints REST y GraphQL de los 5 microservicios, accedidos a través del API Gateway en http://localhost:8080. Incluye el flujo completo de aprobación (aprobado y rechazado) y las consultas GraphQL de auth y solicitudes. Colección probada end-to-end el 22/08/2026 tras corregir: (1) hash bcrypt del seed, (2) enrutamiento de /api/aprobaciones en el gateway, (3) integración de eventos entre aprobaciones-service y solicitudes-service/notificaciones-service, (4) enrutamiento de /graphql/auth y /graphql/solicitudes en el gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "solicitud_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        { "name": "Gateway Health", "request": { "method": "GET", "url": "{{base_url}}/health" } },
+        { "name": "Auth Health", "request": { "method": "GET", "url": "{{base_url}}/api/auth/health" } },
+        { "name": "Solicitudes Health", "request": { "method": "GET", "url": "{{base_url}}/api/solicitudes/health" } },
+        { "name": "Aprobaciones Health", "request": { "method": "GET", "url": "{{base_url}}/api/aprobaciones/health" } }
+      ]
+    },
+    {
+      "name": "Auth Service (REST)",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"mgarcia\",\n  \"password\": \"admin123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me (perfil autenticado)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Service (GraphQL)",
+      "item": [
+        {
+          "name": "GraphQL: login (mutation)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/auth",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { login(username: \\\"mgarcia\\\", password: \\\"admin123\\\") { token rol } }\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GraphQL: me (query)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/auth",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { me(token: \\\"{{token}}\\\") { id username rol } }\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Solicitudes Service (REST)",
+      "item": [
+        {
+          "name": "Crear solicitud",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/solicitudes/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Renovacion de licencias antivirus\",\n  \"areaSolicitante\": \"Tecnologia\",\n  \"prioridad\": \"alta\",\n  \"costoEstimado\": 15000.00,\n  \"creadaPor\": \"mgarcia\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar solicitudes",
+          "request": { "method": "GET", "url": "{{base_url}}/api/solicitudes/solicitudes" }
+        },
+        {
+          "name": "Obtener solicitud por id",
+          "request": { "method": "GET", "url": "{{base_url}}/api/solicitudes/solicitudes/{{solicitud_id}}" }
+        },
+        {
+          "name": "Cambiar estado de solicitud",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/solicitudes/solicitudes/{{solicitud_id}}/estado",
+            "body": { "mode": "raw", "raw": "{\n  \"estado\": \"en_revision\"\n}" }
+          }
+        },
+        {
+          "name": "Eliminar solicitud",
+          "request": { "method": "DELETE", "url": "{{base_url}}/api/solicitudes/solicitudes/{{solicitud_id}}" }
+        }
+      ]
+    },
+    {
+      "name": "Solicitudes Service (GraphQL)",
+      "item": [
+        {
+          "name": "GraphQL: crearSolicitud (mutation)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { crearSolicitud(input: { titulo: \\\"Compra de laptops\\\", areaSolicitante: \\\"Operaciones\\\", prioridad: \\\"media\\\", costoEstimado: 8000, creadaPor: \\\"mgarcia\\\" }) { id estado } }\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GraphQL: solicitudes (query)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { solicitudes { id titulo estado costoEstimado } }\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GraphQL: solicitud por id (query)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { solicitud(id: {{solicitud_id}}) { id titulo estado } }\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GraphQL: cambiarEstado (mutation)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { cambiarEstado(id: {{solicitud_id}}, estado: \\\"en_revision\\\") { id estado } }\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Aprobaciones Service (flujo completo)",
+      "item": [
+        {
+          "name": "1. Iniciar flujo (paso maker)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/aprobaciones/{{solicitud_id}}/iniciar?usuario=mgarcia&comentario=Primer paso"
+          }
+        },
+        {
+          "name": "2. Historial de aprobaciones",
+          "request": { "method": "GET", "url": "{{base_url}}/api/aprobaciones/{{solicitud_id}}/historial" }
+        },
+        {
+          "name": "3a. Resolver paso maker (APROBAR)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/aprobaciones/{{solicitud_id}}/maker",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aprobado\",\n  \"usuario\": \"jchecker\",\n  \"comentario\": \"Revisado, avanza a checker\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4a. Resolver paso checker (APROBAR)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/aprobaciones/{{solicitud_id}}/checker",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aprobado\",\n  \"usuario\": \"lauthorizer\",\n  \"comentario\": \"Revisado, avanza a authorizer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "5a. Resolver paso authorizer (APROBAR - cierra el flujo)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/aprobaciones/{{solicitud_id}}/authorizer",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aprobado\",\n  \"usuario\": \"lauthorizer\",\n  \"comentario\": \"Aprobado finalmente\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4b. Resolver paso checker (RECHAZAR - alternativa a 4a)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/aprobaciones/{{solicitud_id}}/checker",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"rechazado\",\n  \"usuario\": \"jchecker\",\n  \"comentario\": \"Presupuesto insuficiente este trimestre\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notificaciones Service (REST)",
+      "item": [
+        {
+          "name": "Listar notificaciones",
+          "request": { "method": "GET", "url": "{{base_url}}/api/notificaciones/notificaciones" }
+        }
+      ]
+    }
+  ]
+}

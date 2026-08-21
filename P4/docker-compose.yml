@@ -1,0 +1,102 @@
+version: "3.9"
+
+services:
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: sa-p4-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sa_user
+      POSTGRES_PASSWORD: sa_password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d
+      - sa_p4_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa_user -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  auth-service:
+    build: ./auth-service
+    container_name: sa-p4-auth
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_USER: sa_user
+      DB_PASSWORD: sa_password
+      DB_NAME: authdb
+      JWT_SECRET: practica4-secreto-dev
+      PORT: 4001
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "4001:4001"
+
+  solicitudes-service:
+    build: ./solicitudes-service
+    container_name: sa-p4-solicitudes
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_USER: sa_user
+      DB_PASSWORD: sa_password
+      DB_NAME: solicitudesdb
+      NOTIFICACIONES_URL: http://notificaciones-service:4004
+      PORT: 4002
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "4002:4002"
+
+  aprobaciones-service:
+    build: ./aprobaciones-service
+    container_name: sa-p4-aprobaciones
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_USER: sa_user
+      DB_PASSWORD: sa_password
+      DB_NAME: aprobacionesdb
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "4003:4003"
+
+  notificaciones-service:
+    build: ./notificaciones-service
+    container_name: sa-p4-notificaciones
+    restart: unless-stopped
+    ports:
+      - "4004:4004"
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: sa-p4-gateway
+    restart: unless-stopped
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:4001
+      SOLICITUDES_SERVICE_URL: http://solicitudes-service:4002
+      APROBACIONES_SERVICE_URL: http://aprobaciones-service:4003
+      NOTIFICACIONES_SERVICE_URL: http://notificaciones-service:4004
+      PORT: 8080
+    depends_on:
+      - auth-service
+      - solicitudes-service
+      - aprobaciones-service
+      - notificaciones-service
+    ports:
+      - "8080:8080"
+
+volumes:
+  sa_p4_pgdata:

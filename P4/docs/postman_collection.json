@@ -1,0 +1,153 @@
+{
+  "info": {
+    "name": "Practica 4 - Sistema Bancario de Solicitudes (via API Gateway)",
+    "description": "Contrato de endpoints REST y GraphQL de los 4 microservicios, accedidos a través del API Gateway en http://localhost:8080",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth Service",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"mgarcia\",\n  \"password\": \"admin123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me (perfil autenticado)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{base_url}}/api/auth/health" }
+        },
+        {
+          "name": "GraphQL: login (mutation)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/auth",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { login(username: \\\"mgarcia\\\", password: \\\"admin123\\\") { token rol } }\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Solicitudes Service",
+      "item": [
+        {
+          "name": "Crear solicitud",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/solicitudes/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Renovacion de licencias antivirus\",\n  \"areaSolicitante\": \"Tecnologia\",\n  \"prioridad\": \"alta\",\n  \"costoEstimado\": 15000.00,\n  \"creadaPor\": \"mgarcia\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar solicitudes",
+          "request": { "method": "GET", "url": "{{base_url}}/api/solicitudes/solicitudes" }
+        },
+        {
+          "name": "Obtener solicitud por id",
+          "request": { "method": "GET", "url": "{{base_url}}/api/solicitudes/solicitudes/1" }
+        },
+        {
+          "name": "Cambiar estado de solicitud",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/solicitudes/solicitudes/1/estado",
+            "body": { "mode": "raw", "raw": "{\n  \"estado\": \"en_revision\"\n}" }
+          }
+        },
+        {
+          "name": "Eliminar solicitud",
+          "request": { "method": "DELETE", "url": "{{base_url}}/api/solicitudes/solicitudes/1" }
+        },
+        {
+          "name": "GraphQL: crearSolicitud (mutation)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation { crearSolicitud(input: { titulo: \\\"Compra de laptops\\\", areaSolicitante: \\\"Operaciones\\\", prioridad: \\\"media\\\", costoEstimado: 8000, creadaPor: \\\"mgarcia\\\" }) { id estado } }\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GraphQL: solicitudes (query)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/graphql/solicitudes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { solicitudes { id titulo estado costoEstimado } }\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Aprobaciones Service",
+      "item": [
+        {
+          "name": "Iniciar flujo (paso maker)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/aprobaciones/1/iniciar?usuario=mgarcia&comentario=Primer paso"
+          }
+        },
+        {
+          "name": "Historial de aprobaciones de una solicitud",
+          "request": { "method": "GET", "url": "{{base_url}}/api/aprobaciones/1/historial" }
+        },
+        {
+          "name": "Resolver paso maker (aprobar)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/aprobaciones/1/maker",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aprobado\",\n  \"usuario\": \"jchecker\",\n  \"comentario\": \"Revisado, avanza a checker\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notificaciones Service",
+      "item": [
+        {
+          "name": "Listar notificaciones",
+          "request": { "method": "GET", "url": "{{base_url}}/api/notificaciones/notificaciones" }
+        }
+      ]
+    }
+  ]
+}
