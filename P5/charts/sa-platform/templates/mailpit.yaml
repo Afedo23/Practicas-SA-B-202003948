@@ -1,0 +1,111 @@
+{{- if .Values.global.mailpit.enabled }}
+# Mailpit: servidor SMTP falso para ver los correos en local sin usar
+# credenciales reales de Gmail. Puerto 1025 = SMTP, 8025 = interfaz web.
+# Habilitado SOLO en values-dev.yaml (global.mailpit.enabled=true).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mailpit-sa
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mailpit
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "mailpit") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "sa-platform.selectorLabels" (dict "component" "mailpit") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sa-platform.selectorLabels" (dict "component" "mailpit") | nindent 8 }}
+    spec:
+      serviceAccountName: mailpit-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10002
+            runAsGroup: 10002
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: smtp
+              containerPort: 1025
+            - name: http
+              containerPort: 8025
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            tcpSocket: { port: smtp }
+            initialDelaySeconds: 3
+          livenessProbe:
+            tcpSocket: { port: smtp }
+            initialDelaySeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 100m, memory: 96Mi }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mailpit
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "mailpit") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "sa-platform.selectorLabels" (dict "component" "mailpit") | nindent 4 }}
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: smtp
+    - name: http
+      port: 8025
+      targetPort: http
+---
+# Solo auth-service y aprobaciones-service envian correo -> son los unicos
+# que pueden alcanzar a mailpit por SMTP.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services-to-mailpit
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: mailpit
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: auth-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: aprobaciones-service
+      ports:
+        - protocol: TCP
+          port: 1025
+{{- end }}

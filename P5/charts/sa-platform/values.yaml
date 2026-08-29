@@ -15,6 +15,12 @@ global:
   broker:
     hostOverride: ""   # vacio => "<release-name>-rabbitmq"
     port: "5672"
+  smtp:
+    enabled: "true"
+    hostOverride: ""   # vacio => mailpit (si esta habilitado) o smtp.gmail.com
+    port: "587"        # ignorado si mailpit.enabled=true (usa 1025)
+  mailpit:
+    enabled: false      # true en values-dev.yaml para probar correos en local
 
 namespace: sa-p5   # usado solo fuera del template context (documentacion / helm template --show-only)
 
@@ -52,11 +58,20 @@ secrets:
   broker:
     user: ""
     password: ""
+  smtp:
+    user: ""   # vacio => Mailpit en dev; Gmail real solo en values.example.yaml/prod
+    pass: ""
   jwtSecret: ""
 
 # --- Dependencia: PostgreSQL (bitnami) ---
 postgresql:
   enabled: true
+  # Bitnami retiro casi todas sus imagenes versionadas de docker.io/bitnami
+  # en 2025-2026 y las movio a docker.io/bitnamilegacy (sin actualizaciones,
+  # pero sirve para esta practica). Sin este override, el pod queda en
+  # ImagePullBackOff con "manifest unknown".
+  image:
+    repository: bitnamilegacy/postgresql
   auth:
     # DEBEN coincidir con secrets.db.user / secrets.db.password de arriba.
     username: ""
@@ -82,15 +97,20 @@ postgresql:
           CREATE TABLE IF NOT EXISTS usuarios (
               id SERIAL PRIMARY KEY,
               username VARCHAR(50) UNIQUE NOT NULL,
+              email VARCHAR(150) NOT NULL,
               password_hash VARCHAR(255) NOT NULL,
               rol VARCHAR(20) NOT NULL CHECK (rol IN ('maker', 'checker', 'authorizer', 'admin')),
               creado_en TIMESTAMP DEFAULT NOW()
           );
           -- Usuario admin de prueba (password: admin123, hash generado con bcrypt en el seed)
-          INSERT INTO usuarios (username, password_hash, rol) VALUES
-              ('mgarcia', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'maker'),
-              ('jchecker', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'checker'),
-              ('lauthorizer', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'authorizer')
+          -- IMPORTANTE: reemplaza los correos de ejemplo por direcciones reales tuyas
+          -- (o de compañeros que puedan confirmar) antes de probar el envio de correo,
+          -- por ejemplo con:
+          --   UPDATE usuarios SET email = 'tu-correo-real@gmail.com' WHERE username = 'mgarcia';
+          INSERT INTO usuarios (username, email, password_hash, rol) VALUES
+              ('mgarcia', 'mgarcia@example.com', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'maker'),
+              ('jchecker', 'jchecker@example.com', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'checker'),
+              ('lauthorizer', 'lauthorizer@example.com', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'authorizer')
           ON CONFLICT DO NOTHING;
 
           \c solicitudesdb
@@ -114,6 +134,21 @@ postgresql:
               usuario VARCHAR(50) NOT NULL,
               comentario VARCHAR(255),
               fecha TIMESTAMP DEFAULT NOW()
+          );
+
+          -- Codigos de confirmacion por correo, requeridos para resolver un paso de
+          -- checker/authorizer (ver aprobaciones-service/app/infrastructure/email_service.py).
+          -- Un codigo es de un solo uso y expira a los 10 minutos.
+          CREATE TABLE IF NOT EXISTS confirmaciones_pendientes (
+              id SERIAL PRIMARY KEY,
+              solicitud_id INTEGER NOT NULL,
+              paso VARCHAR(20) NOT NULL CHECK (paso IN ('checker','authorizer')),
+              usuario VARCHAR(50) NOT NULL,
+              email VARCHAR(150) NOT NULL,
+              codigo VARCHAR(6) NOT NULL,
+              usado BOOLEAN NOT NULL DEFAULT false,
+              expira_en TIMESTAMP NOT NULL,
+              creado_en TIMESTAMP DEFAULT NOW()
           );
 
           \c auditoriadb
@@ -148,6 +183,9 @@ postgresql:
 # --- Dependencia: RabbitMQ (bitnami) ---
 rabbitmq:
   enabled: true
+  # Mismo motivo que postgresql: la imagen ya no existe en docker.io/bitnami.
+  image:
+    repository: bitnamilegacy/rabbitmq
   auth:
     # DEBEN coincidir con secrets.broker.user / secrets.broker.password.
     username: ""
@@ -256,3 +294,15 @@ cronjobs:
   image2:
     repository: registry.example.com/sa-p5/cronjob-resumen
     tag: ""
+
+# --- Subchart: frontend ---
+frontend:
+  replicaCount: 2
+  image:
+    repository: registry.example.com/sa-p5/frontend
+    tag: ""
+  service:
+    port: 8080
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }

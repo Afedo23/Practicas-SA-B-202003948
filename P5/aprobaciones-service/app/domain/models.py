@@ -17,6 +17,11 @@ class DecisionAprobacion(BaseModel):
     estado: str  # "aprobado" | "rechazado"
     usuario: str
     comentario: Optional[str] = None
+    # Requerido solo para los pasos "checker" y "authorizer" (ver
+    # PASOS_CON_CODIGO en infrastructure/email_confirmation.py): un codigo
+    # de un solo uso enviado por correo real, sin el cual la decision se
+    # rechaza con 401.
+    codigo: Optional[str] = None
 
 
 class Aprobacion(BaseModel):

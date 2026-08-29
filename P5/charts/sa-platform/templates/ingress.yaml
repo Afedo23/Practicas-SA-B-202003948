@@ -5,23 +5,34 @@ metadata:
   namespace: {{ .Values.global.namespace | quote }}
   labels:
     {{- include "sa-platform.labels" (dict "root" . "component" "ingress") | nindent 4 }}
-  annotations:
-    {{- if eq .Values.ingress.controller "nginx" }}
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className | default "nginx" | quote }}
   rules:
     - host: {{ .Values.ingress.host | default "sa-platform.local" | quote }}
       http:
         paths:
-          # Unica puerta de entrada al cluster: todo el trafico (REST y
-          # GraphQL de los 4 microservicios) pasa por el api-gateway; el
-          # gateway es quien enruta internamente a cada microservicio.
-          - path: /()(.*)
-            pathType: ImplementationSpecific
+          # Rutas REST/GraphQL: van al api-gateway TAL CUAL (sin reescribir
+          # el path), porque el propio gateway espera el prefijo /api/... o
+          # /graphql/... para enrutar internamente a cada microservicio.
+          - path: /api
+            pathType: Prefix
             backend:
               service:
                 name: {{ .Release.Name }}-api-gateway
                 port:
                   number: {{ (index .Values "api-gateway" "service" "port") | default 8080 }}
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-api-gateway
+                port:
+                  number: {{ (index .Values "api-gateway" "service" "port") | default 8080 }}
+          # Todo lo demas (la UI del panel de pruebas) va al frontend.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-frontend
+                port:
+                  number: {{ .Values.frontend.service.port | default 8080 }}

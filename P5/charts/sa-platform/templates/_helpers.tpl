@@ -87,4 +87,7 @@ BROKER_HOST: {{ default (printf "%s-rabbitmq" .Release.Name) .Values.global.brok
 BROKER_PORT: {{ .Values.global.broker.port | default "5672" | quote }}
 LOG_LEVEL: {{ .Values.global.logLevel | default "info" | quote }}
 CARNE: {{ required "global.estudianteCarne es requerido (numero de carne para los cronjobs)" .Values.global.estudianteCarne | quote }}
+SMTP_ENABLED: {{ .Values.global.smtp.enabled | default "true" | quote }}
+SMTP_HOST: {{ if .Values.global.smtp.hostOverride }}{{ .Values.global.smtp.hostOverride | quote }}{{ else if .Values.global.mailpit.enabled }}{{ printf "%s-mailpit" .Release.Name | quote }}{{ else }}{{ "smtp.gmail.com" | quote }}{{ end }}
+SMTP_PORT: {{ if .Values.global.mailpit.enabled }}{{ "1025" | quote }}{{ else }}{{ .Values.global.smtp.port | default "587" | quote }}{{ end }}
 {{- end -}}

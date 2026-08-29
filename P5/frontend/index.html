@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consola de Solicitudes — Panel de pruebas</title>
+<style>
+  :root{
+    --paper:#f7f6f2;
+    --panel:#ffffff;
+    --ink:#1c1f26;
+    --ink-soft:#5b6270;
+    --line:#e2e0d8;
+    --brand:#1d4e89;
+    --brand-ink:#ffffff;
+    --amber:#a3721f;
+    --amber-bg:#fbf1de;
+    --green:#2f6e4e;
+    --green-bg:#e9f3ee;
+    --red:#a6402f;
+    --red-bg:#fbeae7;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    display:flex;
+    min-height:100vh;
+  }
+  a{color:inherit;}
+
+  /* ---------- sidebar ---------- */
+  .rail{
+    width:230px;
+    flex:0 0 230px;
+    background:var(--ink);
+    color:#e8e9ec;
+    padding:22px 16px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .rail h1{
+    font-size:15px;
+    font-weight:600;
+    letter-spacing:.01em;
+    margin:0 0 2px 4px;
+    color:#fff;
+  }
+  .rail .sub{
+    font-size:12px;
+    color:#8b94a3;
+    margin:0 0 22px 4px;
+  }
+  .rail button{
+    all:unset;
+    cursor:pointer;
+    padding:9px 12px;
+    border-radius:6px;
+    font-size:13.5px;
+    color:#c7cbd4;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .rail button:hover{background:#262b36;}
+  .rail button.active{background:var(--brand);color:#fff;}
+  .rail .dot{width:6px;height:6px;border-radius:50%;background:#4a5262;flex:0 0 auto;}
+  .rail button.active .dot{background:#fff;}
+
+  .rail .session{
+    margin-top:auto;
+    padding-top:16px;
+    border-top:1px solid #2b3038;
+    font-size:12px;
+    color:#8b94a3;
+  }
+  .rail .session .who{color:#e8e9ec;font-size:13px;margin-bottom:2px;}
+  .rail .session button.logout{
+    all:unset;cursor:pointer;color:#e08a7a;font-size:12.5px;margin-top:8px;display:inline-block;
+  }
+  .rail .session button.logout:hover{text-decoration:underline;}
+
+  /* ---------- main ---------- */
+  main{flex:1;min-width:0;padding:36px 44px;max-width:980px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  h2{font-size:21px;margin:0 0 4px;font-weight:600;}
+  p.lede{color:var(--ink-soft);font-size:14px;margin:0 0 26px;max-width:60ch;line-height:1.5;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:22px;
+    margin-bottom:20px;
+  }
+  .panel h3{font-size:13px;text-transform:none;font-weight:600;margin:0 0 16px;color:var(--ink);}
+
+  label{display:block;font-size:12.5px;color:var(--ink-soft);margin:0 0 4px;}
+  input, select, textarea{
+    width:100%;
+    font-family:var(--sans);
+    font-size:13.5px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    background:#fff;
+    color:var(--ink);
+    margin-bottom:14px;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--brand);outline-offset:0;border-color:var(--brand);}
+  .row{display:flex;gap:12px;}
+  .row > *{flex:1;}
+
+  .btn{
+    all:unset;
+    cursor:pointer;
+    display:inline-block;
+    background:var(--brand);
+    color:var(--brand-ink);
+    font-size:13.5px;
+    font-weight:500;
+    padding:9px 16px;
+    border-radius:6px;
+  }
+  .btn:hover{background:#173f6f;}
+  .btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand);}
+  .btn.ghost:hover{background:#eef3f9;}
+  .btn.danger{background:var(--red);}
+  .btn.danger:hover{background:#8a3527;}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{
+    text-align:left;font-weight:500;color:var(--ink-soft);
+    padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px;
+  }
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  code.id{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+
+  .badge{
+    display:inline-block;font-family:var(--mono);font-size:11px;
+    padding:2px 8px;border-radius:99px;
+  }
+  .badge.pendiente{background:var(--amber-bg);color:var(--amber);}
+  .badge.aprobado, .badge.completado, .badge.ok{background:var(--green-bg);color:var(--green);}
+  .badge.rechazado, .badge.error{background:var(--red-bg);color:var(--red);}
+  .badge.neutral{background:#eee;color:#666;}
+
+  .empty{color:var(--ink-soft);font-size:13px;padding:18px 4px;}
+
+  .log{
+    font-family:var(--mono);font-size:11.5px;line-height:1.6;
+    background:#14161b;color:#c9cdd6;border-radius:8px;padding:14px 16px;
+    max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  }
+  .log .ok{color:#7fd99a;}
+  .log .err{color:#f0968a;}
+  .log .req{color:#8fb4e0;}
+
+  .health-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;}
+  .health-card{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:#fff;}
+  .health-card .name{font-size:13px;font-weight:500;margin-bottom:6px;}
+  .health-card .state{font-family:var(--mono);font-size:12px;}
+
+  .toast{
+    position:fixed;bottom:22px;right:22px;background:var(--ink);color:#fff;
+    padding:11px 16px;border-radius:7px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);
+    opacity:0;transform:translateY(6px);transition:opacity .15s, transform .15s;pointer-events:none;
+    max-width:340px;
+  }
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.err{background:var(--red);}
+
+  .field-hint{font-size:11.5px;color:var(--ink-soft);margin:-10px 0 14px;}
+  .gate-warning{background:var(--amber-bg);color:var(--amber);border-radius:7px;padding:10px 14px;font-size:13px;margin-bottom:18px;}
+</style>
+</head>
+<body>
+
+  <nav class="rail">
+    <h1>Consola de Solicitudes</h1>
+    <p class="sub">Panel de pruebas · sa-platform</p>
+
+    <button data-view="login" class="active"><span class="dot"></span>Sesión</button>
+    <button data-view="solicitudes"><span class="dot"></span>Solicitudes</button>
+    <button data-view="aprobaciones"><span class="dot"></span>Aprobaciones</button>
+    <button data-view="notificaciones"><span class="dot"></span>Notificaciones</button>
+    <button data-view="health"><span class="dot"></span>Estado de servicios</button>
+
+    <div class="session" id="sessionBox">
+      <div>Sin sesión iniciada</div>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ===== LOGIN ===== -->
+    <section class="view active" id="view-login">
+      <h2>Iniciar sesión</h2>
+      <p class="lede">Autentica contra <code>auth-service</code> a través del gateway (<code>POST /api/auth/login</code>). El token se guarda en este navegador y se reutiliza en el resto del panel. Además, al hacer login se envía por correo ese mismo token a la dirección registrada del usuario.</p>
+      <div class="gate-warning">📬 En local (Mailpit): <code>kubectl port-forward svc/sa-platform-mailpit 8025:8025 -n sa-p5</code> y abrí <code>http://localhost:8025</code> para ver los correos. En la nube, revisá la bandeja de Gmail real configurada.</div>
+
+      <div class="panel" style="max-width:380px;">
+        <label for="loginUser">Usuario</label>
+        <input id="loginUser" placeholder="mgarcia" autocomplete="username">
+        <label for="loginPass">Contraseña</label>
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+        <div class="btn-row">
+          <button class="btn" id="btnLogin">Iniciar sesión</button>
+          <button class="btn ghost" id="btnMe">Ver /me</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Usuarios de prueba (según la Práctica 4)</h3>
+        <table>
+          <tr><th>Usuario</th><th>Rol</th><th>Contraseña</th></tr>
+          <tr><td><code class="id">mgarcia</code></td><td>maker</td><td><code class="id">admin123</code></td></tr>
+          <tr><td><code class="id">jchecker</code></td><td>checker</td><td><code class="id">admin123</code></td></tr>
+          <tr><td><code class="id">lauthorizer</code></td><td>authorizer</td><td><code class="id">admin123</code></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== SOLICITUDES ===== -->
+    <section class="view" id="view-solicitudes">
+      <h2>Solicitudes</h2>
+      <p class="lede">CRUD contra <code>solicitudes-service</code> vía <code>/api/solicitudes</code>.</p>
+      <div id="gateSolicitudes" class="gate-warning" style="display:none;">Iniciá sesión primero en la pestaña "Sesión".</div>
+
+      <div class="panel">
+        <h3>Nueva solicitud</h3>
+        <div class="row">
+          <div>
+            <label>Título</label>
+            <input id="solTitulo" placeholder="Compra de licencias">
+          </div>
+          <div>
+            <label>Área solicitante</label>
+            <input id="solArea" placeholder="Infraestructura">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Prioridad</label>
+            <select id="solPrioridad">
+              <option>baja</option><option selected>media</option><option>alta</option>
+            </select>
+          </div>
+          <div>
+            <label>Costo estimado</label>
+            <input id="solCosto" type="number" placeholder="1500">
+          </div>
+        </div>
+        <label>Creada por</label>
+        <input id="solCreadaPor" placeholder="mgarcia">
+        <div class="btn-row">
+          <button class="btn" id="btnCrearSolicitud">Crear solicitud</button>
+          <button class="btn ghost" id="btnListarSolicitudes">Actualizar listado</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Listado</h3>
+        <div id="tablaSolicitudes"><p class="empty">Sin datos todavía — creá una solicitud o pulsá "Actualizar listado".</p></div>
+      </div>
+    </section>
+
+    <!-- ===== APROBACIONES ===== -->
+    <section class="view" id="view-aprobaciones">
+      <h2>Aprobaciones</h2>
+      <p class="lede">Flujo maker → checker → authorizer contra <code>aprobaciones-service</code> vía <code>/api/aprobaciones</code>.</p>
+      <div id="gateAprobaciones" class="gate-warning" style="display:none;">Iniciá sesión primero en la pestaña "Sesión".</div>
+
+      <div class="panel">
+        <h3>Iniciar flujo</h3>
+        <div class="row">
+          <div>
+            <label>ID de solicitud</label>
+            <input id="aprIniciarId" type="number" placeholder="1">
+          </div>
+          <div>
+            <label>Usuario (maker)</label>
+            <input id="aprIniciarUsuario" placeholder="mgarcia">
+          </div>
+        </div>
+        <label>Comentario (opcional)</label>
+        <input id="aprIniciarComentario" placeholder="Enviado para revisión">
+        <div class="btn-row"><button class="btn" id="btnIniciarFlujo">Iniciar flujo</button></div>
+      </div>
+
+      <div class="panel">
+        <h3>Resolver paso</h3>
+        <p class="field-hint" style="margin-top:-4px;">Los pasos <strong>checker</strong> y <strong>authorizer</strong> exigen un código de confirmación enviado por correo real — pedilo primero, después enviá la decisión con ese código.</p>
+        <div class="row">
+          <div>
+            <label>ID de solicitud</label>
+            <input id="aprResolverId" type="number" placeholder="1">
+          </div>
+          <div>
+            <label>Paso</label>
+            <select id="aprPaso"><option>maker</option><option selected>checker</option><option>authorizer</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Usuario</label>
+            <input id="aprResolverUsuario" placeholder="jchecker">
+          </div>
+          <div>
+            <label>Correo (para recibir el código)</label>
+            <input id="aprResolverEmail" placeholder="jchecker@example.com">
+          </div>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px;">
+          <button class="btn ghost" id="btnSolicitarCodigo">1 · Solicitar código por correo</button>
+        </div>
+        <div class="row">
+          <div>
+            <label>Decisión</label>
+            <select id="aprEstado"><option>aprobado</option><option>rechazado</option></select>
+          </div>
+          <div>
+            <label>Código recibido por correo</label>
+            <input id="aprCodigo" placeholder="123456" maxlength="6">
+          </div>
+        </div>
+        <label>Comentario (opcional)</label>
+        <input id="aprResolverComentario" placeholder="Validado contra presupuesto">
+        <div class="btn-row"><button class="btn" id="btnResolverPaso">2 · Enviar decisión</button></div>
+      </div>
+
+      <div class="panel">
+        <h3>Historial de una solicitud</h3>
+        <div class="row" style="align-items:flex-end;">
+          <div>
+            <label>ID de solicitud</label>
+            <input id="aprHistorialId" type="number" placeholder="1">
+          </div>
+          <div style="flex:0 0 auto;">
+            <button class="btn ghost" id="btnHistorial" style="margin-bottom:14px;">Ver historial</button>
+          </div>
+        </div>
+        <div id="tablaHistorial"><p class="empty">Consultá un ID de solicitud para ver su historial de aprobación.</p></div>
+      </div>
+    </section>
+
+    <!-- ===== NOTIFICACIONES ===== -->
+    <section class="view" id="view-notificaciones">
+      <h2>Notificaciones</h2>
+      <p class="lede">Eventos registrados en <code>notificaciones-service</code> — incluye tanto las notificaciones HTTP síncronas como los resúmenes que llegan de forma asíncrona desde el broker (Cronjob 2 → RabbitMQ → consumidor).</p>
+
+      <div class="panel">
+        <h3>Registrar notificación manual (prueba)</h3>
+        <div class="row">
+          <div>
+            <label>Evento</label>
+            <input id="notiEvento" placeholder="prueba.manual">
+          </div>
+          <div>
+            <label>Payload (JSON)</label>
+            <input id="notiPayload" placeholder='{"nota":"hola"}'>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btnCrearNotificacion">Registrar</button>
+          <button class="btn ghost" id="btnListarNotificaciones">Actualizar listado</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Historial</h3>
+        <div id="tablaNotificaciones"><p class="empty">Sin datos todavía.</p></div>
+      </div>
+    </section>
+
+    <!-- ===== HEALTH ===== -->
+    <section class="view" id="view-health">
+      <h2>Estado de servicios</h2>
+      <p class="lede">Pega <code>/health</code> de cada servicio a través del gateway. Útil para confirmar que el Ingress y las NetworkPolicies dejan pasar el tráfico correcto.</p>
+      <div class="btn-row" style="margin-bottom:18px;"><button class="btn ghost" id="btnCheckAll">Volver a comprobar todo</button></div>
+      <div class="health-grid" id="healthGrid"></div>
+    </section>
+
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  // El frontend y el gateway se sirven detrás del mismo Ingress, por eso
+  // las llamadas son relativas (""): en local pegan a través del mismo
+  // host que sirve este HTML, sin CORS ni URLs hardcodeadas.
+  const API = "/api";
+
+  const state = {
+    token: localStorage.getItem("sa_token") || null,
+    rol: localStorage.getItem("sa_rol") || null,
+    username: localStorage.getItem("sa_username") || null,
+  };
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  function toast(msg, isErr) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.className = "toast show" + (isErr ? " err" : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove("show"), 3200);
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  async function call(method, path, body, opts) {
+    opts = opts || {};
+    const headers = { "Content-Type": "application/json" };
+    if (state.token && !opts.noAuth) headers["Authorization"] = "Bearer " + state.token;
+    let res, data;
+    try {
+      res = await fetch(path, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      throw new Error("No se pudo contactar " + path + " (¿el gateway está arriba?)");
+    }
+    const text = await res.text();
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+    if (!res.ok) {
+      const msg = (data && (data.error || data.detail)) || res.statusText || "Error";
+      const err = new Error(msg);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  // ---------- navegación ----------
+  function showView(name) {
+    $$(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
+    $$(".rail button[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+    if (name === "health") checkAllHealth();
+    if (name === "solicitudes") { toggleGate("gateSolicitudes"); if (state.token) listarSolicitudes(); }
+    if (name === "aprobaciones") toggleGate("gateAprobaciones");
+  }
+  $$(".rail button[data-view]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.view)));
+
+  function toggleGate(id) {
+    $("#" + id).style.display = state.token ? "none" : "block";
+  }
+
+  function renderSession() {
+    const box = $("#sessionBox");
+    if (state.token) {
+      box.innerHTML =
+        '<div class="who">' + esc(state.username || "sesión activa") + "</div>" +
+        '<div>' + esc(state.rol || "") + "</div>" +
+        '<button class="logout" id="btnLogout">Cerrar sesión</button>';
+      $("#btnLogout").addEventListener("click", logout);
+    } else {
+      box.innerHTML = "<div>Sin sesión iniciada</div>";
+    }
+  }
+
+  function logout() {
+    state.token = null; state.rol = null; state.username = null;
+    localStorage.removeItem("sa_token"); localStorage.removeItem("sa_rol"); localStorage.removeItem("sa_username");
+    renderSession();
+    toast("Sesión cerrada");
+  }
+
+  // ---------- LOGIN ----------
+  $("#btnLogin").addEventListener("click", async () => {
+    const username = $("#loginUser").value.trim();
+    const password = $("#loginPass").value;
+    if (!username || !password) return toast("Completá usuario y contraseña", true);
+    try {
+      const data = await call("POST", API + "/auth/login", { username, password }, { noAuth: true });
+      state.token = data.token; state.rol = data.rol; state.username = username;
+      localStorage.setItem("sa_token", state.token);
+      localStorage.setItem("sa_rol", state.rol);
+      localStorage.setItem("sa_username", username);
+      renderSession();
+      toast("Sesión iniciada como " + username);
+    } catch (e) {
+      toast("Login falló: " + e.message, true);
+    }
+  });
+
+  $("#btnMe").addEventListener("click", async () => {
+    if (!state.token) return toast("Iniciá sesión primero", true);
+    try {
+      const me = await call("GET", API + "/auth/me");
+      toast("me → " + JSON.stringify(me));
+    } catch (e) {
+      toast("/me falló: " + e.message, true);
+    }
+  });
+
+  // ---------- SOLICITUDES ----------
+  function badge(estado) {
+    const cls = { pendiente: "pendiente", aprobado: "aprobado", rechazado: "rechazado" }[estado] || "neutral";
+    return '<span class="badge ' + cls + '">' + esc(estado || "—") + "</span>";
+  }
+
+  async function listarSolicitudes() {
+    const host = $("#tablaSolicitudes");
+    try {
+      const items = await call("GET", API + "/solicitudes/solicitudes");
+      if (!items.length) { host.innerHTML = '<p class="empty">No hay solicitudes todavía.</p>'; return; }
+      host.innerHTML =
+        "<table><tr><th>ID</th><th>Título</th><th>Área</th><th>Prioridad</th><th>Costo</th><th>Estado</th><th></th></tr>" +
+        items.map((s) => (
+          "<tr>" +
+          '<td><code class="id">' + s.id + "</code></td>" +
+          "<td>" + esc(s.titulo) + "</td>" +
+          "<td>" + esc(s.areaSolicitante || s.area_solicitante || "") + "</td>" +
+          "<td>" + esc(s.prioridad) + "</td>" +
+          "<td>" + esc(s.costoEstimado ?? s.costo_estimado ?? "") + "</td>" +
+          "<td>" + badge(s.estado) + "</td>" +
+          '<td><button class="btn ghost" data-del="' + s.id + '" style="padding:4px 10px;font-size:12px;">Eliminar</button></td>' +
+          "</tr>"
+        )).join("") + "</table>";
+      $$('button[data-del]').forEach((b) => b.addEventListener("click", () => eliminarSolicitud(b.dataset.del)));
+    } catch (e) {
+      host.innerHTML = '<p class="empty">Error al listar: ' + esc(e.message) + "</p>";
+    }
+  }
+
+  $("#btnCrearSolicitud").addEventListener("click", async () => {
+    if (!state.token) return toast("Iniciá sesión primero", true);
+    const body = {
+      titulo: $("#solTitulo").value.trim(),
+      areaSolicitante: $("#solArea").value.trim(),
+      prioridad: $("#solPrioridad").value,
+      costoEstimado: Number($("#solCosto").value || 0),
+      creadaPor: $("#solCreadaPor").value.trim() || state.username,
+    };
+    if (!body.titulo || !body.areaSolicitante) return toast("Completá título y área", true);
+    try {
+      const s = await call("POST", API + "/solicitudes/solicitudes", body);
+      toast("Solicitud #" + s.id + " creada");
+      listarSolicitudes();
+    } catch (e) {
+      toast("Error al crear: " + e.message, true);
+    }
+  });
+
+  $("#btnListarSolicitudes").addEventListener("click", listarSolicitudes);
+
+  async function eliminarSolicitud(id) {
+    try {
+      await call("DELETE", API + "/solicitudes/solicitudes/" + id);
+      toast("Solicitud #" + id + " eliminada");
+      listarSolicitudes();
+    } catch (e) {
+      toast("Error al eliminar: " + e.message, true);
+    }
+  }
+
+  // ---------- APROBACIONES ----------
+  $("#btnIniciarFlujo").addEventListener("click", async () => {
+    if (!state.token) return toast("Iniciá sesión primero", true);
+    const id = $("#aprIniciarId").value;
+    const usuario = $("#aprIniciarUsuario").value.trim() || state.username;
+    const comentario = $("#aprIniciarComentario").value.trim();
+    if (!id) return toast("Indicá el ID de solicitud", true);
+    const qs = new URLSearchParams({ usuario, ...(comentario ? { comentario } : {}) });
+    try {
+      const r = await call("POST", API + "/aprobaciones/" + id + "/iniciar?" + qs.toString());
+      toast("Flujo iniciado, paso actual: " + (r.paso || "maker"));
+    } catch (e) {
+      toast("Error al iniciar flujo: " + e.message, true);
+    }
+  });
+
+  $("#btnSolicitarCodigo").addEventListener("click", async () => {
+    const id = $("#aprResolverId").value;
+    const paso = $("#aprPaso").value;
+    const usuario = $("#aprResolverUsuario").value.trim() || state.username;
+    const email = $("#aprResolverEmail").value.trim();
+    if (!id) return toast("Indicá el ID de solicitud", true);
+    if (paso === "maker") return toast("El paso maker no requiere código", true);
+    if (!email) return toast("Indicá el correo donde recibir el código", true);
+    const qs = new URLSearchParams({ usuario, email });
+    try {
+      await call("POST", API + "/aprobaciones/" + id + "/" + paso + "/solicitar-codigo?" + qs.toString(), undefined);
+      toast("Código enviado a " + email + " (vence en 10 min)");
+    } catch (e) {
+      toast("Error al solicitar código: " + e.message, true);
+    }
+  });
+
+  $("#btnResolverPaso").addEventListener("click", async () => {
+    if (!state.token) return toast("Iniciá sesión primero", true);
+    const id = $("#aprResolverId").value;
+    const paso = $("#aprPaso").value;
+    if (!id) return toast("Indicá el ID de solicitud", true);
+    const body = {
+      estado: $("#aprEstado").value,
+      usuario: $("#aprResolverUsuario").value.trim() || state.username,
+      comentario: $("#aprResolverComentario").value.trim() || null,
+      codigo: $("#aprCodigo").value.trim() || null,
+    };
+    if (paso !== "maker" && !body.codigo) return toast("Este paso requiere el código recibido por correo", true);
+    try {
+      await call("PATCH", API + "/aprobaciones/" + id + "/" + paso, body);
+      toast("Paso \"" + paso + "\" resuelto como " + body.estado);
+    } catch (e) {
+      toast("Error al resolver paso: " + e.message, true);
+    }
+  });
+
+  $("#btnHistorial").addEventListener("click", async () => {
+    const id = $("#aprHistorialId").value;
+    const host = $("#tablaHistorial");
+    if (!id) return toast("Indicá el ID de solicitud", true);
+    try {
+      const items = await call("GET", API + "/aprobaciones/" + id + "/historial");
+      if (!items.length) { host.innerHTML = '<p class="empty">Sin pasos registrados para esa solicitud.</p>'; return; }
+      host.innerHTML =
+        "<table><tr><th>Paso</th><th>Estado</th><th>Usuario</th><th>Comentario</th><th>Fecha</th></tr>" +
+        items.map((a) => (
+          "<tr><td>" + esc(a.paso) + "</td><td>" + badge(a.estado) + "</td><td>" + esc(a.usuario) +
+          "</td><td>" + esc(a.comentario || "—") + "</td><td><code class=\"id\">" + esc((a.fecha || "").replace("T", " ").slice(0, 19)) + "</code></td></tr>"
+        )).join("") + "</table>";
+    } catch (e) {
+      host.innerHTML = '<p class="empty">Error: ' + esc(e.message) + "</p>";
+    }
+  });
+
+  // ---------- NOTIFICACIONES ----------
+  async function listarNotificaciones() {
+    const host = $("#tablaNotificaciones");
+    try {
+      const items = await call("GET", API + "/notificaciones/notificaciones", undefined, { noAuth: true });
+      if (!items.length) { host.innerHTML = '<p class="empty">Sin notificaciones todavía.</p>'; return; }
+      host.innerHTML =
+        "<table><tr><th>ID</th><th>Evento</th><th>Payload</th><th>Fecha</th></tr>" +
+        items.map((n) => (
+          '<tr><td><code class="id">' + n.id + "</code></td><td>" + esc(n.evento) +
+          "</td><td><code class=\"id\">" + esc(JSON.stringify(n.payload)) + "</code></td><td><code class=\"id\">" +
+          esc((n.fecha || "").replace("T", " ").slice(0, 19)) + "</code></td></tr>"
+        )).join("") + "</table>";
+    } catch (e) {
+      host.innerHTML = '<p class="empty">Error al listar: ' + esc(e.message) + "</p>";
+    }
+  }
+
+  $("#btnCrearNotificacion").addEventListener("click", async () => {
+    const evento = $("#notiEvento").value.trim();
+    let payload = {};
+    const raw = $("#notiPayload").value.trim();
+    if (raw) { try { payload = JSON.parse(raw); } catch (e) { return toast("El payload debe ser JSON válido", true); } }
+    if (!evento) return toast("Indicá un nombre de evento", true);
+    try {
+      await call("POST", API + "/notificaciones/notificaciones", { evento, payload }, { noAuth: true });
+      toast("Notificación registrada");
+      listarNotificaciones();
+    } catch (e) {
+      toast("Error: " + e.message, true);
+    }
+  });
+  $("#btnListarNotificaciones").addEventListener("click", listarNotificaciones);
+
+  // ---------- HEALTH ----------
+  const SERVICES = [
+    { name: "api-gateway", path: "/health" },
+    { name: "auth-service", path: API + "/auth/health" },
+    { name: "solicitudes-service", path: API + "/solicitudes/health" },
+    { name: "aprobaciones-service", path: API + "/aprobaciones/health" },
+    { name: "notificaciones-service", path: API + "/notificaciones/health" },
+  ];
+
+  function renderHealthGrid() {
+    $("#healthGrid").innerHTML = SERVICES.map((s) => (
+      '<div class="health-card" id="health-' + s.name + '">' +
+      '<div class="name">' + s.name + "</div>" +
+      '<div class="state"><span class="badge neutral">sin comprobar</span></div>' +
+      "</div>"
+    )).join("");
+  }
+
+  async function checkAllHealth() {
+    renderHealthGrid();
+    SERVICES.forEach(async (s) => {
+      const card = $("#health-" + s.name).querySelector(".state");
+      try {
+        const data = await call("GET", s.path, undefined, { noAuth: true });
+        card.innerHTML = '<span class="badge ok">' + (data.status || "ok") + "</span>";
+      } catch (e) {
+        card.innerHTML = '<span class="badge error">' + (e.status || "sin respuesta") + "</span>";
+      }
+    });
+  }
+  $("#btnCheckAll").addEventListener("click", checkAllHealth);
+
+  // ---------- init ----------
+  renderSession();
+  renderHealthGrid();
+  if (state.token) showView("solicitudes");
+})();
+</script>
+</body>
+</html>

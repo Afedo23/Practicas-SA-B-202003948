@@ -54,7 +54,10 @@ app.use(
   createProxyMiddleware({
     target: APROBACIONES_URL,
     changeOrigin: true,
-    pathRewrite: { "^/api/aprobaciones": "/aprobaciones" },
+    // aprobaciones-service expone sus rutas SIN prefijo (ej. /{id}/iniciar,
+    // no /aprobaciones/{id}/iniciar), así que hay que recortar el prefijo
+    // por completo, no reescribirlo a "/aprobaciones".
+    pathRewrite: { "^/api/aprobaciones": "" },
   })
 );
 

@@ -31,6 +31,24 @@ spec:
   ingress:
     - {}
 ---
+# El frontend (panel de pruebas) tambien es accesible directamente desde
+# el Ingress, igual que el gateway -- ambos son "puerta de entrada", solo
+# que el frontend sirve HTML/JS estatico y el gateway expone la API.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+---
 # auth-service: solo el gateway puede llamarlo.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

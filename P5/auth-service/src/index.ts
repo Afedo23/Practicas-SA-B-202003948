@@ -4,6 +4,7 @@ import { ApolloServer } from "apollo-server-express";
 import { PostgresUserRepository } from "./infrastructure/PostgresUserRepository";
 import { BcryptPasswordHasher } from "./infrastructure/BcryptPasswordHasher";
 import { JwtTokenProvider } from "./infrastructure/JwtTokenProvider";
+import { SmtpEmailService } from "./infrastructure/EmailService";
 import { AuthService } from "./application/AuthService";
 import { buildAuthRoutes } from "./routes/authRoutes";
 import { typeDefs } from "./graphql/schema";
@@ -19,7 +20,8 @@ async function main() {
   const userRepository = new PostgresUserRepository();
   const passwordHasher = new BcryptPasswordHasher();
   const tokenProvider = new JwtTokenProvider();
-  const authService = new AuthService(userRepository, passwordHasher, tokenProvider);
+  const emailService = new SmtpEmailService();
+  const authService = new AuthService(userRepository, passwordHasher, tokenProvider, emailService);
 
   app.use("/", buildAuthRoutes(authService));
 

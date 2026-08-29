@@ -4,6 +4,7 @@ export const typeDefs = gql`
   type Usuario {
     id: ID!
     username: String!
+    email: String!
     rol: String!
   }
 

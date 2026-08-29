@@ -108,7 +108,9 @@ cp values.example.yaml values.local.yaml
 # 4. Verificar el chart antes de instalar.
 helm lint . -f values.local.yaml -f values-dev.yaml
 
-# 5. Instalar (el propio chart crea el namespace sa-p5 vía hook).
+# 5. Instalar (--create-namespace es el mecanismo NATIVO de Helm para crear
+#    el namespace del release: sigue siendo "creado por el chart", nunca un
+#    `kubectl create namespace` manual aparte).
 helm install sa-platform . -n sa-p5 --create-namespace \
   -f values.local.yaml -f values-dev.yaml
 

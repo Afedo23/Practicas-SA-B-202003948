@@ -12,6 +12,7 @@ requeridas, preguntas teóricas): [`docs/README.md`](docs/README.md).**
 
 ```
 P5/
+├── frontend/                # NUEVO: panel de pruebas estatico (HTML/JS + nginx)
 ├── auth-service/            # Node/TS - hereda de P4, Dockerfile multi-stage
 ├── solicitudes-service/     # Node/TS - hereda de P4, Dockerfile multi-stage
 ├── aprobaciones-service/    # Python/FastAPI - hereda de P4, Dockerfile multi-stage
@@ -39,7 +40,7 @@ P5/
    rabbitmq de bitnami).
 2. Copiar `values.example.yaml` a `values.local.yaml` y poner tu carné en
    `global.estudianteCarne`.
-3. Construir y publicar las 7 imágenes (5 servicios + 2 cronjobs) en el
+3. Construir y publicar las 8 imágenes (5 servicios + 1 frontend + 2 cronjobs) en el
    registry que uses (o cargarlas directo al clúster local con
    `minikube image load` / `eval $(minikube docker-env)`).
 4. Seguir los comandos reproducibles completos en `docs/README.md`.

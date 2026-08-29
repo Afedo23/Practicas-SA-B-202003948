@@ -5,6 +5,11 @@
 
 global:
   logLevel: info
+  mailpit:
+    enabled: false
+  smtp:
+    hostOverride: "smtp.gmail.com"
+    port: "587"
 
 api-gateway:
   replicaCount: 3
@@ -61,3 +66,10 @@ postgresql:
 rabbitmq:
   persistence:
     size: 2Gi
+
+frontend:
+  replicaCount: 3
+  image: { tag: "1.0.0" }
+  resources:
+    requests: { cpu: 75m, memory: 96Mi }
+    limits: { cpu: 200m, memory: 192Mi }
