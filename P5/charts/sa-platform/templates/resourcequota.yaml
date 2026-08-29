@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "sa-platform.fullname" . }}-quota
+  namespace: {{ .Values.global.namespace | quote }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.resourceQuota.requestsCpu | default "4" | quote }}
+    requests.memory: {{ .Values.resourceQuota.requestsMemory | default "4Gi" | quote }}
+    limits.cpu: {{ .Values.resourceQuota.limitsCpu | default "8" | quote }}
+    limits.memory: {{ .Values.resourceQuota.limitsMemory | default "8Gi" | quote }}
+    pods: {{ .Values.resourceQuota.maxPods | default "40" | quote }}

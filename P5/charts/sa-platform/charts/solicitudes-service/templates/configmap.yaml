@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-solicitudes-service-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "solicitudes-service") | nindent 4 }}
+data:
+  DB_NAME: "solicitudesdb"
+  PORT: "4002"
+  NOTIFICACIONES_URL: "http://{{ .Release.Name }}-notificaciones-service:4004"

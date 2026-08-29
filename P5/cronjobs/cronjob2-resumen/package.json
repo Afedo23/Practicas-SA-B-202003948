@@ -1,0 +1,8 @@
+{
+  "name": "cronjob2-resumen",
+  "version": "1.0.0",
+  "description": "Practica 5 SA - Cronjob 2: calcula resumen de ejecuciones por hora y lo publica en el broker",
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "dependencies": { "pg": "^8.11.5", "amqplib": "^0.10.4" }
+}

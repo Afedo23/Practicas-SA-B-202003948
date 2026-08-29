@@ -1,0 +1,14 @@
+# Rol de minimo privilegio: auth-service no necesita hablar con la API de
+# Kubernetes; el Role solo permite leer su propio ConfigMap (para
+# depuracion), y queda explicitamente prohibido usar el ServiceAccount
+# "default" del namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: auth-service-role
+  namespace: {{ .Values.global.namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["{{ .Release.Name }}-auth-service-config", "{{ .Release.Name }}-app-config"]
+    verbs: ["get"]

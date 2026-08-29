@@ -1,0 +1,62 @@
+# Practica 5 - Software Avanzado
+# Overrides de AMBIENTE DEV. Uso: helm install sa-platform ./charts/sa-platform
+#   -n sa-p5 --create-namespace -f values.example.yaml -f values-dev.yaml
+
+global:
+  logLevel: debug
+
+api-gateway:
+  replicaCount: 1
+  image: { tag: "dev" }
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+  logLevel: debug
+
+auth-service:
+  replicaCount: 1
+  image: { tag: "dev" }
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+  logLevel: debug
+
+solicitudes-service:
+  replicaCount: 1
+  image: { tag: "dev" }
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+  logLevel: debug
+
+aprobaciones-service:
+  replicaCount: 1
+  image: { tag: "dev" }
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+  logLevel: debug
+
+notificaciones-service:
+  replicaCount: 1
+  image: { tag: "dev" }
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+  logLevel: debug
+
+cronjobs:
+  image: { tag: "dev" }
+  image2: { tag: "dev" }
+
+postgresql:
+  primary:
+    persistence:
+      size: 512Mi
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+
+rabbitmq:
+  persistence:
+    size: 512Mi

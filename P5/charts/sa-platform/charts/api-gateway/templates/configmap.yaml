@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-api-gateway-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "api-gateway") | nindent 4 }}
+data:
+  AUTH_SERVICE_URL: "http://{{ .Release.Name }}-auth-service:4001"
+  SOLICITUDES_SERVICE_URL: "http://{{ .Release.Name }}-solicitudes-service:4002"
+  APROBACIONES_SERVICE_URL: "http://{{ .Release.Name }}-aprobaciones-service:4003"
+  NOTIFICACIONES_SERVICE_URL: "http://{{ .Release.Name }}-notificaciones-service:4004"
+  PORT: "8080"

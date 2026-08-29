@@ -1,0 +1,6 @@
+apiVersion: v2
+name: notificaciones-service
+description: Subchart de notificaciones-service (Practica 5 - Software Avanzado)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

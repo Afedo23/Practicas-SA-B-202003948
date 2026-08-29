@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-aprobaciones-service-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "aprobaciones-service") | nindent 4 }}
+data:
+  DB_NAME: "aprobacionesdb"
+  SOLICITUDES_SERVICE_URL: "http://{{ .Release.Name }}-solicitudes-service:4002"
+  NOTIFICACIONES_SERVICE_URL: "http://{{ .Release.Name }}-notificaciones-service:4004"

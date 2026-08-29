@@ -1,0 +1,14 @@
+replicaCount: 2
+image:
+  repository: registry.example.com/sa-p5/solicitudes-service
+  tag: ""
+service:
+  port: 4002
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 300m, memory: 256Mi }
+hpa:
+  minReplicas: 2
+  maxReplicas: 5
+  targetCpuPercent: 70
+logLevel: info

@@ -1,0 +1,33 @@
+# Practica 5 - Software Avanzado
+# EJEMPLO con valores FICTICIOS. Copiar como values.local.yaml (que SI debe
+# estar en .gitignore) y reemplazar con credenciales reales antes de instalar
+# en un ambiente que le importe a alguien. Este archivo values.example.yaml
+# es el unico que se versiona en el repositorio: ninguna credencial real
+# vive en el historial de git.
+#
+# IMPORTANTE: secrets.db.* debe coincidir EXACTAMENTE con postgresql.auth.*,
+# y secrets.broker.* con rabbitmq.auth.*, porque son consumidos por dos
+# subcharts distintos (el nuestro y el de bitnami) que no comparten values.
+
+global:
+  estudianteCarne: "202012345"   # <-- reemplazar por el carne real del estudiante
+
+secrets:
+  db:
+    user: "sa_user"
+    password: "CAMBIA-ESTA-CLAVE-ficticia"
+  broker:
+    user: "sa_broker"
+    password: "CAMBIA-ESTA-CLAVE-ficticia"
+  jwtSecret: "practica5-jwt-secret-ficticio-cambiame"
+
+postgresql:
+  auth:
+    username: "sa_user"
+    password: "CAMBIA-ESTA-CLAVE-ficticia"
+    postgresPassword: "CAMBIA-ESTA-CLAVE-admin-ficticia"
+
+rabbitmq:
+  auth:
+    username: "sa_broker"
+    password: "CAMBIA-ESTA-CLAVE-ficticia"

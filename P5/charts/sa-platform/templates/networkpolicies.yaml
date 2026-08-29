@@ -1,0 +1,206 @@
+{{- $ns := .Values.global.namespace -}}
+{{- $release := .Release.Name -}}
+---
+# Por defecto Kubernetes PERMITE todo el trafico entre pods. Esta politica
+# lo niega todo como base, y las politicas siguientes abren solo lo
+# explicitamente autorizado (whitelist).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# El API Gateway es la unica puerta de entrada: acepta trafico desde
+# cualquier origen (llega a traves del Ingress Controller).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-gateway
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: api-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+---
+# auth-service: solo el gateway puede llamarlo.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-auth
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: auth-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: api-gateway
+---
+# solicitudes-service: el gateway y aprobaciones-service (actualiza el
+# estado de la solicitud tras el ultimo paso del flujo).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-solicitudes
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: solicitudes-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: aprobaciones-service
+---
+# aprobaciones-service: solo el gateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-aprobaciones
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: aprobaciones-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: api-gateway
+---
+# notificaciones-service: el gateway, solicitudes-service y
+# aprobaciones-service (notificaciones HTTP sincronas de esos flujos).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-notificaciones
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+      app.kubernetes.io/component: notificaciones-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: solicitudes-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: aprobaciones-service
+---
+# Base de datos (StatefulSet bitnami/postgresql): solo los microservicios y
+# cronjobs que realmente tienen una BD propia pueden alcanzarla. api-gateway
+# y aprobaciones-service (via HTTP a otros servicios, sin BD directa aqui... )
+# quedan fuera intencionalmente si no necesitan acceso directo al pod de BD.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services-to-database
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: {{ $release }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: auth-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: solicitudes-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: aprobaciones-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: notificaciones-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: cronjob-registro
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: cronjob-resumen
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Broker (RabbitMQ): solo quien publica (cronjob-resumen) y quien consume
+# (notificaciones-service) pueden alcanzarlo. auth/solicitudes/aprobaciones
+# y cronjob-registro NO tienen permitido llegar al broker.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services-to-broker
+  namespace: {{ $ns | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+      app.kubernetes.io/instance: {{ $release }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: notificaciones-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sa-platform
+              app.kubernetes.io/component: cronjob-resumen
+      ports:
+        - protocol: TCP
+          port: 5672
+---
+# Permite que el propio DNS del cluster (kube-dns/coredns) siga resolviendo
+# nombres para todos los pods de la plataforma (egress no se restringe,
+# pero el DNS interno normalmente corre por udp/53 - se documenta aqui
+# como referencia si se decide restringir egress en una practica futura).

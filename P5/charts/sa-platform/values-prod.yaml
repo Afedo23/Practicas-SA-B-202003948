@@ -1,0 +1,63 @@
+# Practica 5 - Software Avanzado
+# Overrides de AMBIENTE PROD (simulado localmente). Uso:
+#   helm install sa-platform ./charts/sa-platform -n sa-p5 --create-namespace \
+#     -f values.example.yaml -f values-prod.yaml
+
+global:
+  logLevel: info
+
+api-gateway:
+  replicaCount: 3
+  image: { tag: "1.0.0" }
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 384Mi }
+  logLevel: info
+
+auth-service:
+  replicaCount: 3
+  image: { tag: "1.0.0" }
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 384Mi }
+  logLevel: info
+
+solicitudes-service:
+  replicaCount: 3
+  image: { tag: "1.0.0" }
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 384Mi }
+  logLevel: info
+
+aprobaciones-service:
+  replicaCount: 3
+  image: { tag: "1.0.0" }
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 384Mi }
+  logLevel: info
+
+notificaciones-service:
+  replicaCount: 3
+  image: { tag: "1.0.0" }
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 384Mi }
+  logLevel: info
+
+cronjobs:
+  image: { tag: "1.0.0" }
+  image2: { tag: "1.0.0" }
+
+postgresql:
+  primary:
+    persistence:
+      size: 4Gi
+    resources:
+      requests: { cpu: 500m, memory: 512Mi }
+      limits: { cpu: 1, memory: 1Gi }
+
+rabbitmq:
+  persistence:
+    size: 2Gi

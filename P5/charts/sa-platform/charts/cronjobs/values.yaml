@@ -1,0 +1,29 @@
+image:
+  repository: registry.example.com/sa-p5/cronjob-registro
+  tag: ""
+
+image2:
+  repository: registry.example.com/sa-p5/cronjob-resumen
+  tag: ""
+
+cronjob1:
+  schedule: "*/2 * * * *"
+  historyLimit:
+    successful: 3
+    failed: 3
+  backoffLimit: 2
+
+cronjob2:
+  schedule: "*/10 * * * *"
+  historyLimit:
+    successful: 3
+    failed: 3
+  backoffLimit: 2
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

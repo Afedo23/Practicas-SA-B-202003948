@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-solicitudes-service-pdb
+  namespace: {{ .Values.global.namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "sa-platform.selectorLabels" (dict "component" "solicitudes-service") | nindent 6 }}

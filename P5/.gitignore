@@ -1,0 +1,10 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.env
+values.local.yaml
+*.local.yaml
+charts/sa-platform/charts/*.tgz
+charts/sa-platform/Chart.lock
+.DS_Store

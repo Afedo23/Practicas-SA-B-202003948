@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-notificaciones-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "notificaciones-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "sa-platform.selectorLabels" (dict "component" "notificaciones-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sa-platform.selectorLabels" (dict "component" "notificaciones-service") | nindent 8 }}
+      annotations:
+        # Fuerza el reinicio del pod cuando cambia el ConfigMap propio del
+        # servicio o el ConfigMap compartido de la plataforma.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/config-shared: {{ include "sa-platform.appConfigData" . | sha256sum }}
+    spec:
+      serviceAccountName: notificaciones-service-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: notificaciones-service
+          image: {{ include "sa-platform.image" (dict "repository" .Values.image.repository "tag" .Values.image.tag "Chart" .Chart) }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 4004
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-app-config
+            - configMapRef:
+                name: {{ .Release.Name }}-notificaciones-service-config
+            - secretRef:
+                name: {{ .Release.Name }}-app-secrets
+          # Probes justificadas en docs/README.md seccion "Salud y probes":
+          # startup cubre el arranque en frio (npm install/ts-node o uvicorn),
+          # readiness saca el pod del Service si /health falla temporalmente,
+          # liveness reinicia el contenedor solo si esta realmente colgado.
+          startupProbe:
+            httpGet: { path: /health, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

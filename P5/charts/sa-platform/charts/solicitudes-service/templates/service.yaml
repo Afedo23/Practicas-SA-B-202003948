@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-solicitudes-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "solicitudes-service") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "sa-platform.selectorLabels" (dict "component" "solicitudes-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port | default 4002 }}
+      targetPort: http

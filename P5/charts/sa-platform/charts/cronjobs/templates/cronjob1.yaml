@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cronjob-registro
+  namespace: {{ .Values.global.namespace | quote }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "cronjob-registro") | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob1.schedule | quote }}
+  # Evita que se acumulen ejecuciones solapadas si una corrida tarda mas de
+  # 2 minutos.
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ .Values.cronjob1.historyLimit.successful }}
+  failedJobsHistoryLimit: {{ .Values.cronjob1.historyLimit.failed }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronjob1.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            {{- include "sa-platform.selectorLabels" (dict "component" "cronjob-registro") | nindent 12 }}
+          annotations:
+            checksum/config: {{ include "sa-platform.appConfigData" . | sha256sum | quote }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: cronjob-registro-sa
+          # namespace del pod se hereda del CronJob mismo
+          automountServiceAccountToken: false
+          containers:
+            - name: cronjob-registro
+              image: {{ include "sa-platform.image" (dict "repository" .Values.image.repository "tag" .Values.image.tag "Chart" .Chart) }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 10001
+                runAsGroup: 10001
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              envFrom:
+                - configMapRef:
+                    name: {{ .Release.Name }}-app-config
+                - secretRef:
+                    name: {{ .Release.Name }}-app-secrets
+              env:
+                - name: DB_NAME
+                  value: "auditoriadb"
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}

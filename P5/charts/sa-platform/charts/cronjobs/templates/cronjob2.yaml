@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cronjob-resumen
+  namespace: {{ .Values.global.namespace | quote }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "cronjob-resumen") | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob2.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ .Values.cronjob2.historyLimit.successful }}
+  failedJobsHistoryLimit: {{ .Values.cronjob2.historyLimit.failed }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronjob2.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            {{- include "sa-platform.selectorLabels" (dict "component" "cronjob-resumen") | nindent 12 }}
+          annotations:
+            checksum/config: {{ include "sa-platform.appConfigData" . | sha256sum | quote }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: cronjob-resumen-sa
+          automountServiceAccountToken: false
+          containers:
+            - name: cronjob-resumen
+              image: {{ include "sa-platform.image" (dict "repository" .Values.image2.repository "tag" .Values.image2.tag "Chart" .Chart) }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 10001
+                runAsGroup: 10001
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              envFrom:
+                - configMapRef:
+                    name: {{ .Release.Name }}-app-config
+                - secretRef:
+                    name: {{ .Release.Name }}-app-secrets
+              env:
+                - name: DB_NAME
+                  value: "auditoriadb"
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}

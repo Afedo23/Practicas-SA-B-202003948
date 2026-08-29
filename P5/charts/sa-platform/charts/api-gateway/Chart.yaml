@@ -1,0 +1,6 @@
+apiVersion: v2
+name: api-gateway
+description: Subchart de api-gateway (Practica 5 - Software Avanzado)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

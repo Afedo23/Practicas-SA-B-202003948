@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cronjobs
+description: CronJob 1 (registro de ejecucion) y CronJob 2 (resumen -> broker) de la plataforma
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
