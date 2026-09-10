@@ -10,15 +10,15 @@
 # subcharts distintos (el nuestro y el de bitnami) que no comparten values.
 
 global:
-  estudianteCarne: "202003948"   # <-- reemplazar por el carne real del estudiante
+  estudianteCarne: "mi carnet" 
 
 secrets:
   db:
     user: "sa_user"
-    password: "practicas_de_sa_202003948"
+    password: "Cambiar_Esto por tu Contraseña"
   broker:
     user: "sa_broker"
-    password: "practicas_de_sa_202003948"
+    password: "Cambiar_Esto por tu Contraseña"
   jwtSecret: "practica5-jwt-secret-ficticio-cambiame"
   smtp:
     # Solo se usan cuando global.mailpit.enabled=false (prod/nube). Gmail
@@ -31,10 +31,10 @@ secrets:
 postgresql:
   auth:
     username: "sa_user"
-    password: "practicas_de_sa_202003948"
-    postgresPassword: "practicas_de_sa_202003948"
+    password: "Cambiar_Esto por tu Contraseña"
+    postgresPassword: "Cambiar_Esto por tu Contraseña"
 
 rabbitmq:
   auth:
     username: "sa_broker"
-    password: "practicas_de_sa_202003948"
+    password: "Cambiar_Esto por tu Contraseña"

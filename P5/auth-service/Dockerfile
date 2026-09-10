@@ -1,18 +1,25 @@
-# ---- build stage: instala TODAS las deps y compila TS -> JS ----
+# ---- deps stage: instala TODAS las deps (con lockfile, reproducible) ----
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# ---- build stage: reusa node_modules de deps y compila TS -> JS ----
 FROM node:20-alpine AS build
 WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
-RUN npm install
 COPY src ./src
-RUN npx tsc
+RUN npx tsc && rm -rf dist/__tests__
 
 # ---- runtime stage: solo deps de produccion + JS compilado (imagen minima, no-root) ----
-FROM node:20-alpine
+FROM node:20-alpine AS prod
 RUN addgroup -g 10001 -S app && adduser -u 10001 -S app -G app
 WORKDIR /app
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+ENV NODE_ENV=production
 EXPOSE 4001
 USER app
 CMD ["node", "dist/index.js"]

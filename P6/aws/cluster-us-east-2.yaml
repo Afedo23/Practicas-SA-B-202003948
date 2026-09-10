@@ -20,7 +20,7 @@ iam:
 
 managedNodeGroups:
   - name: sa-p6-ng-1
-    instanceType: t3.small  # balance costo/memoria suficiente para 2 nodos con ~13 pods
+    instanceType: t3.small 
     desiredCapacity: 2
     minSize: 2
     maxSize: 2

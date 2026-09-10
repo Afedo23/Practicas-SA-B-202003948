@@ -1,0 +1,224 @@
+name: P7 - CI/CD sa-platform
+
+on:
+  push:
+    branches: [main]
+    tags: ["p7-v*"]
+    paths:
+      - "P5/**"
+      - "P7/**"
+      - ".github/workflows/p7-cicd.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "P5/**"
+      - "P7/**"
+  workflow_dispatch: {}
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ----------------------------------------------------------------
+  # 1) CI - build + test de los servicios Node.js (TypeScript y JS)
+  # ----------------------------------------------------------------
+  test-node:
+    name: Test Node - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - P5/auth-service
+          - P5/solicitudes-service
+          - P5/api-gateway
+          - P5/cronjobs/cronjob1-registro
+          - P5/cronjobs/cronjob2-resumen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+
+      - name: Instalar dependencias (npm ci)
+        working-directory: ${{ matrix.service }}
+        run: npm ci
+
+      - name: Build (tsc si aplica)
+        working-directory: ${{ matrix.service }}
+        run: npm run build --if-present
+
+      - name: Ejecutar pruebas
+        working-directory: ${{ matrix.service }}
+        run: npm test
+
+  # ----------------------------------------------------------------
+  # 2) CI - build + test de los servicios Python
+  # ----------------------------------------------------------------
+  test-python:
+    name: Test Python - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - P5/aprobaciones-service
+          - P5/notificaciones-service
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Instalar dependencias
+        working-directory: ${{ matrix.service }}
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Ejecutar pruebas (pytest)
+        working-directory: ${{ matrix.service }}
+        run: pytest -q
+
+  # ----------------------------------------------------------------
+  # 3) CD - build de imagenes Docker + push a GHCR
+  #    Solo corre si el CI de arriba paso.
+  # ----------------------------------------------------------------
+  docker-build-push:
+    name: Docker build/push - ${{ matrix.name }}
+    needs: [test-node, test-python]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api-gateway
+            context: P5/api-gateway
+          - name: auth-service
+            context: P5/auth-service
+          - name: solicitudes-service
+            context: P5/solicitudes-service
+          - name: aprobaciones-service
+            context: P5/aprobaciones-service
+          - name: notificaciones-service
+            context: P5/notificaciones-service
+          - name: cronjob-registro
+            context: P5/cronjobs/cronjob1-registro
+          - name: cronjob-resumen
+            context: P5/cronjobs/cronjob2-resumen
+          - name: frontend
+            context: P5/frontend
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Definir variables (owner en minusculas, tag = sha corto)
+        id: vars
+        run: |
+          echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build y push de la imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner_lc }}/sa-p7/${{ matrix.name }}:${{ steps.vars.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner_lc }}/sa-p7/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # ----------------------------------------------------------------
+  # 4) CD - despliegue automatico al cluster EKS (Practica 6) con Helm
+  #    Solo en push a main o al crear un tag p7-v* (no en Pull Requests).
+  # ----------------------------------------------------------------
+  deploy:
+    name: Deploy a EKS (sa-p6) con Helm
+    needs: docker-build-push
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Definir variables
+        id: vars
+        run: |
+          echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Actualizar kubeconfig (cluster de la Practica 6)
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+      - name: Instalar Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.0
+
+      - name: Reconstruir values.local.yaml (credenciales, no versionadas)
+        run: echo "${{ secrets.HELM_VALUES_LOCAL }}" > P5/charts/sa-platform/values.local.yaml
+
+      - name: helm dependency build
+        working-directory: P5/charts/sa-platform
+        run: helm dependency build
+
+      - name: helm upgrade --install
+        env:
+          IMG: ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner_lc }}/sa-p7
+          TAG: ${{ steps.vars.outputs.image_tag }}
+        working-directory: P5/charts/sa-platform
+        run: |
+          helm upgrade --install sa-platform . \
+            --namespace sa-p6 --create-namespace \
+            -f values.local.yaml \
+            -f values-aws.yaml \
+            --set api-gateway.image.repository=$IMG/api-gateway \
+            --set api-gateway.image.tag=$TAG \
+            --set auth-service.image.repository=$IMG/auth-service \
+            --set auth-service.image.tag=$TAG \
+            --set solicitudes-service.image.repository=$IMG/solicitudes-service \
+            --set solicitudes-service.image.tag=$TAG \
+            --set aprobaciones-service.image.repository=$IMG/aprobaciones-service \
+            --set aprobaciones-service.image.tag=$TAG \
+            --set notificaciones-service.image.repository=$IMG/notificaciones-service \
+            --set notificaciones-service.image.tag=$TAG \
+            --set cronjobs.image.repository=$IMG/cronjob-registro \
+            --set cronjobs.image.tag=$TAG \
+            --set cronjobs.image2.repository=$IMG/cronjob-resumen \
+            --set cronjobs.image2.tag=$TAG \
+            --set frontend.image.repository=$IMG/frontend \
+            --set frontend.image.tag=$TAG \
+            --wait --timeout 10m
+
+      - name: Verificar rollout
+        run: kubectl get pods -n sa-p6

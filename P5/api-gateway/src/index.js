@@ -71,9 +71,17 @@ app.use(
   })
 );
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`api-gateway escuchando en puerto ${PORT}`);
-  console.log(`Rutas: /api/auth, /api/solicitudes, /api/aprobaciones, /api/notificaciones`);
-  console.log(`GraphQL: /graphql/auth, /graphql/solicitudes`);
-});
+// Solo levanta el servidor si el archivo se ejecuta directamente
+// (node src/index.js). Cuando se hace require("./index.js") desde un
+// test, exportamos "app" sin abrir el puerto, para poder probar las
+// rutas con supertest sin necesidad de un servidor real.
+if (require.main === module) {
+  const PORT = process.env.PORT || 8080;
+  app.listen(PORT, () => {
+    console.log(`api-gateway escuchando en puerto ${PORT}`);
+    console.log(`Rutas: /api/auth, /api/solicitudes, /api/aprobaciones, /api/notificaciones`);
+    console.log(`GraphQL: /graphql/auth, /graphql/solicitudes`);
+  });
+}
+
+module.exports = app;
