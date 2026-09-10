@@ -80,6 +80,29 @@ spec:
     - name: http
       port: 8025
       targetPort: http
+{{- if .Values.global.mailpit.exposeWebUI }}
+---
+# Service publico (LoadBalancer) SOLO para la interfaz web de Mailpit
+# (puerto 8025), para poder ver los correos sin necesidad de kubectl
+# port-forward. El puerto SMTP 1025 NUNCA se expone publicamente: solo
+# el Service ClusterIP de arriba lo necesita, para que auth-service y
+# aprobaciones-service le envien correo desde dentro del cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mailpit-public
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "sa-platform.labels" (dict "root" . "component" "mailpit") | nindent 4 }}
+spec:
+  type: LoadBalancer
+  selector:
+    {{- include "sa-platform.selectorLabels" (dict "component" "mailpit") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8025
+      targetPort: http
+{{- end }}
 ---
 # Solo auth-service y aprobaciones-service envian correo -> son los unicos
 # que pueden alcanzar a mailpit por SMTP.

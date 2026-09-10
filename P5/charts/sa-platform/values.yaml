@@ -20,7 +20,8 @@ global:
     hostOverride: ""   # vacio => mailpit (si esta habilitado) o smtp.gmail.com
     port: "587"        # ignorado si mailpit.enabled=true (usa 1025)
   mailpit:
-    enabled: false      # true en values-dev.yaml para probar correos en local
+    enabled: false      # true en values-dev.yaml / values-aws.yaml para probar correos
+    exposeWebUI: false  # true => crea un Service LoadBalancer publico solo para :8025    # true en values-dev.yaml para probar correos en local
 
 namespace: sa-p5   # usado solo fuera del template context (documentacion / helm template --show-only)
 
@@ -108,9 +109,9 @@ postgresql:
           -- por ejemplo con:
           --   UPDATE usuarios SET email = 'tu-correo-real@gmail.com' WHERE username = 'mgarcia';
           INSERT INTO usuarios (username, email, password_hash, rol) VALUES
-              ('mgarcia', 'mgarcia@example.com', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'maker'),
-              ('jchecker', 'jchecker@example.com', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'checker'),
-              ('lauthorizer', 'lauthorizer@example.com', '$2b$10$C6UzMDM.H6dfI/f/IKcEeOoLGb1e3H2lU2s2N.6d1ye1z8O1z8O1a', 'authorizer')
+              ('mgarcia', 'mgarcia@example.com', '$2a$10$ZSrejOcd0KUzaJEMR0A1UeqWuKjPnWVZZ1mmPGAUJzylJjFYotJwS', 'maker'),
+              ('jchecker', 'jchecker@example.com', '$2a$10$ZSrejOcd0KUzaJEMR0A1UeqWuKjPnWVZZ1mmPGAUJzylJjFYotJwS', 'checker'),
+              ('lauthorizer', 'lauthorizer@example.com', '$2a$10$ZSrejOcd0KUzaJEMR0A1UeqWuKjPnWVZZ1mmPGAUJzylJjFYotJwS', 'authorizer')
           ON CONFLICT DO NOTHING;
 
           \c solicitudesdb

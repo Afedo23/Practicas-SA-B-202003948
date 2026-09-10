@@ -115,6 +115,9 @@
     margin-bottom:14px;
   }
   input:focus, select:focus, textarea:focus{outline:2px solid var(--brand);outline-offset:0;border-color:var(--brand);}
+  input.invalid, select.invalid, textarea.invalid{border-color:var(--red);background:var(--red-bg);}
+  input.invalid:focus, select.invalid:focus{outline-color:var(--red);}
+  .field-error{font-size:11.5px;color:var(--red);margin:-10px 0 14px;font-weight:600;}
   .row{display:flex;gap:12px;}
   .row > *{flex:1;}
 
@@ -427,6 +430,58 @@
     }[c]));
   }
 
+  // ---------- validación de formularios ----------
+  function clearFieldError(id) {
+    const el = $("#" + id);
+    if (!el) return;
+    el.classList.remove("invalid");
+    const err = el.parentElement.querySelector('.field-error[data-for="' + id + '"]');
+    if (err) err.remove();
+  }
+
+  function markFieldError(id, msg) {
+    const el = $("#" + id);
+    if (!el) return;
+    el.classList.add("invalid");
+    let err = el.parentElement.querySelector('.field-error[data-for="' + id + '"]');
+    if (!err) {
+      err = document.createElement("div");
+      err.className = "field-error";
+      err.setAttribute("data-for", id);
+      el.insertAdjacentElement("afterend", err);
+    }
+    err.textContent = msg;
+  }
+
+  // fields: [{ id, test(valorTrim) -> bool, msg }]
+  // Limpia y vuelve a marcar cada campo; enfoca el primero invalido;
+  // devuelve true solo si TODOS los campos pasaron.
+  function validateFields(fields) {
+    let firstInvalidEl = null;
+    const mensajes = [];
+    fields.forEach(({ id, test, msg }) => {
+      clearFieldError(id);
+      const el = $("#" + id);
+      const val = el ? el.value.trim() : "";
+      if (!test(val)) {
+        markFieldError(id, msg);
+        mensajes.push(msg);
+        if (!firstInvalidEl) firstInvalidEl = el;
+      }
+    });
+    if (firstInvalidEl) firstInvalidEl.focus();
+    if (mensajes.length) {
+      toast(mensajes.length === 1 ? mensajes[0] : mensajes.length + " campos necesitan corrección", true);
+    }
+    return mensajes.length === 0;
+  }
+
+  const req = (msg) => ({ test: (v) => v.length > 0, msg: msg || "Este campo es obligatorio" });
+  const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const isCodigo6 = (v) => /^\d{6}$/.test(v);
+  const isIdNumerico = (v) => /^\d+$/.test(v);
+  const isNumeroNoNegativo = (v) => v !== "" && !isNaN(v) && Number(v) >= 0;
+
   async function call(method, path, body, opts) {
     opts = opts || {};
     const headers = { "Content-Type": "application/json" };
@@ -489,9 +544,13 @@
 
   // ---------- LOGIN ----------
   $("#btnLogin").addEventListener("click", async () => {
+    const ok = validateFields([
+      { id: "loginUser", ...req("Indicá el usuario") },
+      { id: "loginPass", ...req("Indicá la contraseña") },
+    ]);
+    if (!ok) return;
     const username = $("#loginUser").value.trim();
     const password = $("#loginPass").value;
-    if (!username || !password) return toast("Completá usuario y contraseña", true);
     try {
       const data = await call("POST", API + "/auth/login", { username, password }, { noAuth: true });
       state.token = data.token; state.rol = data.rol; state.username = username;
@@ -547,14 +606,19 @@
 
   $("#btnCrearSolicitud").addEventListener("click", async () => {
     if (!state.token) return toast("Iniciá sesión primero", true);
+    const ok = validateFields([
+      { id: "solTitulo", ...req("El título es obligatorio") },
+      { id: "solArea", ...req("El área solicitante es obligatoria") },
+      { id: "solCosto", test: isNumeroNoNegativo, msg: "El costo estimado debe ser un número ≥ 0" },
+    ]);
+    if (!ok) return;
     const body = {
       titulo: $("#solTitulo").value.trim(),
       areaSolicitante: $("#solArea").value.trim(),
       prioridad: $("#solPrioridad").value,
-      costoEstimado: Number($("#solCosto").value || 0),
+      costoEstimado: Number($("#solCosto").value),
       creadaPor: $("#solCreadaPor").value.trim() || state.username,
     };
-    if (!body.titulo || !body.areaSolicitante) return toast("Completá título y área", true);
     try {
       const s = await call("POST", API + "/solicitudes/solicitudes", body);
       toast("Solicitud #" + s.id + " creada");
@@ -579,10 +643,13 @@
   // ---------- APROBACIONES ----------
   $("#btnIniciarFlujo").addEventListener("click", async () => {
     if (!state.token) return toast("Iniciá sesión primero", true);
-    const id = $("#aprIniciarId").value;
+    const ok = validateFields([
+      { id: "aprIniciarId", test: isIdNumerico, msg: "Indicá un ID de solicitud numérico" },
+    ]);
+    if (!ok) return;
+    const id = $("#aprIniciarId").value.trim();
     const usuario = $("#aprIniciarUsuario").value.trim() || state.username;
     const comentario = $("#aprIniciarComentario").value.trim();
-    if (!id) return toast("Indicá el ID de solicitud", true);
     const qs = new URLSearchParams({ usuario, ...(comentario ? { comentario } : {}) });
     try {
       const r = await call("POST", API + "/aprobaciones/" + id + "/iniciar?" + qs.toString());
@@ -593,13 +660,17 @@
   });
 
   $("#btnSolicitarCodigo").addEventListener("click", async () => {
-    const id = $("#aprResolverId").value;
     const paso = $("#aprPaso").value;
+    if (paso === "maker") { markFieldError("aprPaso", "El paso maker no requiere código"); return toast("El paso maker no requiere código", true); }
+    clearFieldError("aprPaso");
+    const ok = validateFields([
+      { id: "aprResolverId", test: isIdNumerico, msg: "Indicá un ID de solicitud numérico" },
+      { id: "aprResolverEmail", test: isEmail, msg: "Indicá un correo válido para recibir el código" },
+    ]);
+    if (!ok) return;
+    const id = $("#aprResolverId").value.trim();
     const usuario = $("#aprResolverUsuario").value.trim() || state.username;
     const email = $("#aprResolverEmail").value.trim();
-    if (!id) return toast("Indicá el ID de solicitud", true);
-    if (paso === "maker") return toast("El paso maker no requiere código", true);
-    if (!email) return toast("Indicá el correo donde recibir el código", true);
     const qs = new URLSearchParams({ usuario, email });
     try {
       await call("POST", API + "/aprobaciones/" + id + "/" + paso + "/solicitar-codigo?" + qs.toString(), undefined);
@@ -611,16 +682,24 @@
 
   $("#btnResolverPaso").addEventListener("click", async () => {
     if (!state.token) return toast("Iniciá sesión primero", true);
-    const id = $("#aprResolverId").value;
     const paso = $("#aprPaso").value;
-    if (!id) return toast("Indicá el ID de solicitud", true);
+    const campos = [
+      { id: "aprResolverId", test: isIdNumerico, msg: "Indicá un ID de solicitud numérico" },
+    ];
+    if (paso !== "maker") {
+      campos.push({ id: "aprCodigo", test: isCodigo6, msg: "El código debe tener exactamente 6 dígitos (lo recibiste por correo)" });
+    } else {
+      clearFieldError("aprCodigo");
+    }
+    const ok = validateFields(campos);
+    if (!ok) return;
+    const id = $("#aprResolverId").value.trim();
     const body = {
       estado: $("#aprEstado").value,
       usuario: $("#aprResolverUsuario").value.trim() || state.username,
       comentario: $("#aprResolverComentario").value.trim() || null,
       codigo: $("#aprCodigo").value.trim() || null,
     };
-    if (paso !== "maker" && !body.codigo) return toast("Este paso requiere el código recibido por correo", true);
     try {
       await call("PATCH", API + "/aprobaciones/" + id + "/" + paso, body);
       toast("Paso \"" + paso + "\" resuelto como " + body.estado);
@@ -630,9 +709,12 @@
   });
 
   $("#btnHistorial").addEventListener("click", async () => {
-    const id = $("#aprHistorialId").value;
+    const ok = validateFields([
+      { id: "aprHistorialId", test: isIdNumerico, msg: "Indicá un ID de solicitud numérico" },
+    ]);
+    if (!ok) return;
+    const id = $("#aprHistorialId").value.trim();
     const host = $("#tablaHistorial");
-    if (!id) return toast("Indicá el ID de solicitud", true);
     try {
       const items = await call("GET", API + "/aprobaciones/" + id + "/historial");
       if (!items.length) { host.innerHTML = '<p class="empty">Sin pasos registrados para esa solicitud.</p>'; return; }
@@ -666,11 +748,18 @@
   }
 
   $("#btnCrearNotificacion").addEventListener("click", async () => {
+    const ok = validateFields([
+      { id: "notiEvento", ...req("Indicá un nombre de evento") },
+    ]);
+    if (!ok) return;
     const evento = $("#notiEvento").value.trim();
     let payload = {};
     const raw = $("#notiPayload").value.trim();
-    if (raw) { try { payload = JSON.parse(raw); } catch (e) { return toast("El payload debe ser JSON válido", true); } }
-    if (!evento) return toast("Indicá un nombre de evento", true);
+    if (raw) {
+      try { payload = JSON.parse(raw); }
+      catch (e) { markFieldError("notiPayload", "El payload debe ser JSON válido"); return toast("El payload debe ser JSON válido", true); }
+    }
+    clearFieldError("notiPayload");
     try {
       await call("POST", API + "/notificaciones/notificaciones", { evento, payload }, { noAuth: true });
       toast("Notificación registrada");
@@ -712,6 +801,16 @@
     });
   }
   $("#btnCheckAll").addEventListener("click", checkAllHealth);
+
+  // Limpia el estado de error de un campo en cuanto el usuario lo toca de nuevo
+  document.addEventListener("input", (e) => {
+    if (e.target.matches("input.invalid, select.invalid, textarea.invalid")) {
+      clearFieldError(e.target.id);
+    }
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("select.invalid")) clearFieldError(e.target.id);
+  });
 
   // ---------- init ----------
   renderSession();

@@ -12,7 +12,8 @@ global:
   namespace: sa-p6
   logLevel: info
   mailpit:
-    enabled: false
+    enabled: true
+    exposeWebUI: true
 
 # replicaCount: 1 + hpa.minReplicas: 1 en todos los microservicios: t3.medium
 # permite solo 11 pods por nodo (limite de ENIs/IPs del VPC CNI, no de
