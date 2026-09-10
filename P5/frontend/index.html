@@ -1,3 +1,4 @@
+ex · HTML
 <!doctype html>
 <html lang="es">
 <head>
@@ -66,6 +67,7 @@
     display:flex;
     align-items:center;
     gap:9px;
+    transition:background .15s ease, color .15s ease;
   }
   .rail button:hover{background:#262b36;}
   .rail button.active{background:var(--brand);color:#fff;}
@@ -88,7 +90,8 @@
   /* ---------- main ---------- */
   main{flex:1;min-width:0;padding:36px 44px;max-width:980px;}
   .view{display:none;}
-  .view.active{display:block;}
+  .view.active{display:block;animation:viewIn .22s ease;}
+  @keyframes viewIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
   h2{font-size:21px;margin:0 0 4px;font-weight:600;}
   p.lede{color:var(--ink-soft);font-size:14px;margin:0 0 26px;max-width:60ch;line-height:1.5;}
@@ -113,6 +116,7 @@
     background:#fff;
     color:var(--ink);
     margin-bottom:14px;
+    transition:border-color .15s ease, background .15s ease, outline-color .15s ease;
   }
   input:focus, select:focus, textarea:focus{outline:2px solid var(--brand);outline-offset:0;border-color:var(--brand);}
   input.invalid, select.invalid, textarea.invalid{border-color:var(--red);background:var(--red-bg);}
@@ -131,13 +135,16 @@
     font-weight:500;
     padding:9px 16px;
     border-radius:6px;
+    transition:background .15s ease, transform .1s ease, opacity .15s ease;
   }
   .btn:hover{background:#173f6f;}
+  .btn:active{transform:scale(.97);}
   .btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand);}
   .btn.ghost:hover{background:#eef3f9;}
   .btn.danger{background:var(--red);}
   .btn.danger:hover{background:#8a3527;}
   .btn:disabled{opacity:.5;cursor:default;}
+  .btn:disabled:active{transform:none;}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;}
 
   table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -178,7 +185,10 @@
     position:fixed;bottom:22px;right:22px;background:var(--ink);color:#fff;
     padding:11px 16px;border-radius:7px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);
     opacity:0;transform:translateY(6px);transition:opacity .15s, transform .15s;pointer-events:none;
-    max-width:340px;
+    max-width:min(420px, calc(100vw - 44px));
+    overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;
+    max-height:220px;overflow-y:auto;
+    line-height:1.4;
   }
   .toast.show{opacity:1;transform:translateY(0);}
   .toast.err{background:var(--red);}
@@ -210,8 +220,6 @@
     <section class="view active" id="view-login">
       <h2>Iniciar sesión</h2>
       <p class="lede">Autentica contra <code>auth-service</code> a través del gateway (<code>POST /api/auth/login</code>). El token se guarda en este navegador y se reutiliza en el resto del panel. Además, al hacer login se envía por correo ese mismo token a la dirección registrada del usuario.</p>
-      <div class="gate-warning">📬 En local (Mailpit): <code>kubectl port-forward svc/sa-platform-mailpit 8025:8025 -n sa-p5</code> y abrí <code>http://localhost:8025</code> para ver los correos. En la nube, revisá la bandeja de Gmail real configurada.</div>
-
       <div class="panel" style="max-width:380px;">
         <label for="loginUser">Usuario</label>
         <input id="loginUser" placeholder="mgarcia" autocomplete="username">
@@ -438,7 +446,7 @@
     const err = el.parentElement.querySelector('.field-error[data-for="' + id + '"]');
     if (err) err.remove();
   }
-
+ 
   function markFieldError(id, msg) {
     const el = $("#" + id);
     if (!el) return;
@@ -452,7 +460,7 @@
     }
     err.textContent = msg;
   }
-
+ 
   // fields: [{ id, test(valorTrim) -> bool, msg }]
   // Limpia y vuelve a marcar cada campo; enfoca el primero invalido;
   // devuelve true solo si TODOS los campos pasaron.
@@ -475,13 +483,13 @@
     }
     return mensajes.length === 0;
   }
-
+ 
   const req = (msg) => ({ test: (v) => v.length > 0, msg: msg || "Este campo es obligatorio" });
   const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   const isCodigo6 = (v) => /^\d{6}$/.test(v);
   const isIdNumerico = (v) => /^\d+$/.test(v);
   const isNumeroNoNegativo = (v) => v !== "" && !isNaN(v) && Number(v) >= 0;
-
+ 
   async function call(method, path, body, opts) {
     opts = opts || {};
     const headers = { "Content-Type": "application/json" };
@@ -568,7 +576,7 @@
     if (!state.token) return toast("Iniciá sesión primero", true);
     try {
       const me = await call("GET", API + "/auth/me");
-      toast("me → " + JSON.stringify(me));
+      toast("me → " + JSON.stringify(me, null, 2));
     } catch (e) {
       toast("/me falló: " + e.message, true);
     }
@@ -811,7 +819,7 @@
   document.addEventListener("change", (e) => {
     if (e.target.matches("select.invalid")) clearFieldError(e.target.id);
   });
-
+ 
   // ---------- init ----------
   renderSession();
   renderHealthGrid();
@@ -820,3 +828,4 @@
 </script>
 </body>
 </html>
+ 
