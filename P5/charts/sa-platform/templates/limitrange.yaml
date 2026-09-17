@@ -1,3 +1,4 @@
+{{- if .Values.limitRange.managedByHelm | default true }}
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -18,3 +19,4 @@ spec:
       min:
         cpu: {{ .Values.limitRange.minCpu | default "50m" | quote }}
         memory: {{ .Values.limitRange.minMemory | default "64Mi" | quote }}
+{{- end }}
