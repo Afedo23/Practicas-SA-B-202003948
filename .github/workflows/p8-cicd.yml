@@ -108,8 +108,8 @@ jobs:
       - name: helm lint (todos los ambientes)
         working-directory: P5/charts/sa-platform
         run: |
-          helm lint --with-subcharts . -f values-aws.yaml
-          helm lint --with-subcharts . -f values-p8.yaml
+          helm lint . -f values-aws.yaml
+          helm lint . -f values-p8.yaml
 
   # ----------------------------------------------------------------
   # 4) Build + Trivy (bloqueante) + SBOM + firma Cosign + push
