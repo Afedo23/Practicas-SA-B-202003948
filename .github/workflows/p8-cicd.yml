@@ -34,7 +34,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # TODO: ajustar al repo GitOps real (org/nombre), sin URL completa.
-  GITOPS_REPO: usuario/software-avanzado-gitops
+  GITOPS_REPO: Afedo23/software-avanzado-gitops
   # Ruta al kustomization.yaml del repo GitOps (seccion "images:").
   GITOPS_KUSTOMIZATION_DIR: manifests
 
