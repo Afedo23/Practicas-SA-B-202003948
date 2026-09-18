@@ -1,0 +1,262 @@
+name: P8 - GitOps CI (build, scan, sign, PR)
+
+# ---------------------------------------------------------------------------
+# Este pipeline NO toca el cluster. Solo:
+#   1) corre CI (tests) de los servicios
+#   2) valida los charts con helm lint
+#   3) construye y publica las imagenes con un tag SEMANTICO (nunca "latest")
+#   4) las escanea con Trivy y bloquea si hay CVE CRITICAL
+#   5) genera el SBOM de cada imagen
+#   6) firma cada imagen con Cosign (keyless, via OIDC de GitHub Actions)
+#   7) abre un Pull Request automatico al repo GitOps con la nueva version
+#
+# El unico componente que aplica cambios al cluster es ArgoCD (fuera de este
+# pipeline). Por eso aqui NO hay kubectl apply/set image/patch, NO hay
+# helm upgrade/install, y NO se maneja ningun kubeconfig ni credencial de
+# administracion del cluster.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+    tags: ["p8-v*.*.*"]
+    paths:
+      - "P5/**"
+      - "P8/**"
+      - ".github/workflows/p8-cicd.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "P5/**"
+      - "P8/**"
+  workflow_dispatch: {}
+
+env:
+  REGISTRY: ghcr.io
+  # TODO: ajustar al repo GitOps real (org/nombre), sin URL completa.
+  GITOPS_REPO: usuario/software-avanzado-gitops
+  # Ruta al kustomization.yaml del repo GitOps (seccion "images:").
+  GITOPS_KUSTOMIZATION_DIR: manifests
+
+jobs:
+  # ----------------------------------------------------------------
+  # 1) CI - mismas pruebas que en P7, para los servicios Node.js
+  # ----------------------------------------------------------------
+  test-node:
+    name: Test Node - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - P5/auth-service
+          - P5/solicitudes-service
+          - P5/api-gateway
+          - P5/cronjobs/cronjob1-registro
+          - P5/cronjobs/cronjob2-resumen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      - working-directory: ${{ matrix.service }}
+        run: npm ci
+      - working-directory: ${{ matrix.service }}
+        run: npm run build --if-present
+      - working-directory: ${{ matrix.service }}
+        run: npm test
+
+  # ----------------------------------------------------------------
+  # 2) CI - mismas pruebas que en P7, para los servicios Python
+  # ----------------------------------------------------------------
+  test-python:
+    name: Test Python - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - P5/aprobaciones-service
+          - P5/notificaciones-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - working-directory: ${{ matrix.service }}
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - working-directory: ${{ matrix.service }}
+        run: pytest -q
+
+  # ----------------------------------------------------------------
+  # 3) Empaquetado con Helm: validacion (2.2 de la rubrica)
+  # ----------------------------------------------------------------
+  helm-lint:
+    name: helm lint (chart sa-platform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.0
+      - name: helm dependency build
+        working-directory: P5/charts/sa-platform
+        run: helm dependency build
+      - name: helm lint (todos los ambientes)
+        working-directory: P5/charts/sa-platform
+        run: |
+          helm lint --with-subcharts . -f values-aws.yaml
+          helm lint --with-subcharts . -f values-p8.yaml
+
+  # ----------------------------------------------------------------
+  # 4) Build + Trivy (bloqueante) + SBOM + firma Cosign + push
+  #    Solo corre con un tag semantico p8-vX.Y.Z (nunca en cada push a main)
+  # ----------------------------------------------------------------
+  build-scan-sign-push:
+    name: Build/scan/firma - ${{ matrix.name }}
+    needs: [test-node, test-python, helm-lint]
+    if: startsWith(github.ref, 'refs/tags/p8-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # requerido para firma keyless de Cosign via OIDC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api-gateway
+            context: P5/api-gateway
+          - name: auth-service
+            context: P5/auth-service
+          - name: solicitudes-service
+            context: P5/solicitudes-service
+          - name: aprobaciones-service
+            context: P5/aprobaciones-service
+          - name: notificaciones-service
+            context: P5/notificaciones-service
+          - name: cronjob-registro
+            context: P5/cronjobs/cronjob1-registro
+          - name: cronjob-resumen
+            context: P5/cronjobs/cronjob2-resumen
+          - name: frontend
+            context: P5/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Definir version semantica (desde el tag p8-vX.Y.Z) y owner
+        id: vars
+        run: |
+          echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#p8-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build y push (SOLO tag semantico, nunca "latest")
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: >-
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner_lc }}/sa-p8/${{ matrix.name }}:${{ steps.vars.outputs.version }}
+          cache-from: type=gha,scope=p8-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=p8-${{ matrix.name }}
+
+      - name: Referencia completa de la imagen (por digest)
+        id: img
+        run: |
+          echo "ref=${{ env.REGISTRY }}/${{ steps.vars.outputs.owner_lc }}/sa-p8/${{ matrix.name }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy - escaneo de vulnerabilidades (BLOQUEA ante CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.img.outputs.ref }}
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Generar SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.img.outputs.ref }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.name }}-${{ steps.vars.outputs.version }}.spdx.json
+
+      - name: Publicar SBOM como artefacto del run
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.name }}
+          path: sbom-${{ matrix.name }}-${{ steps.vars.outputs.version }}.spdx.json
+
+      - name: Instalar Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Firmar la imagen (keyless, identidad = este workflow de GitHub Actions)
+        run: cosign sign --yes "${{ steps.img.outputs.ref }}"
+
+      - name: Verificar la firma recien creada (evidencia para el README)
+        run: |
+          cosign verify "${{ steps.img.outputs.ref }}" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+  # ----------------------------------------------------------------
+  # 5) GitOps: el pipeline SOLO abre un Pull Request con la nueva
+  #    version de imagen. Jamas aplica cambios al cluster: eso lo
+  #    hace ArgoCD al fusionar el PR sobre el repo de manifiestos.
+  # ----------------------------------------------------------------
+  update-gitops-pr:
+    name: Abrir PR de version en el repo GitOps
+    needs: build-scan-sign-push
+    if: startsWith(github.ref, 'refs/tags/p8-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Definir version semantica
+        id: vars
+        run: echo "version=${GITHUB_REF_NAME#p8-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout del repo GitOps
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - uses: imranismail/setup-kustomize@v2
+
+      - name: Actualizar el tag de imagen con kustomize edit
+        working-directory: gitops/${{ env.GITOPS_KUSTOMIZATION_DIR }}
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          # Un "set image" por cada servicio que ya tenga entrada en el
+          # kustomization.yaml (por ahora solo api-gateway; se agregan mas
+          # a medida que se conviertan los demas servicios).
+          kustomize edit set image \
+            "ghcr.io/${OWNER_LC}/sa-p8/api-gateway=ghcr.io/${OWNER_LC}/sa-p8/api-gateway:${VERSION}"
+
+      - name: Abrir Pull Request automatico
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+          branch: bump-sa-platform-${{ steps.vars.outputs.version }}
+          commit-message: "chore: bump sa-platform a ${{ steps.vars.outputs.version }}"
+          title: "Bump sa-platform a ${{ steps.vars.outputs.version }}"
+          body: |
+            PR automatico generado por el pipeline de P8.
+            Version: ${{ steps.vars.outputs.version }}
+            Commit origen: ${{ github.sha }}
+            Imagenes firmadas con Cosign y escaneadas con Trivy (0 CVE CRITICAL).
