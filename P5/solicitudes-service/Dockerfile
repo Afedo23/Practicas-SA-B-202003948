@@ -14,6 +14,7 @@ RUN npx tsc && rm -rf dist/__tests__
 
 # ---- runtime stage: solo deps de produccion + JS compilado (imagen minima, no-root) ----
 FROM node:24-alpine3.24 AS prod
+RUN apk update && apk upgrade --no-cache
 RUN addgroup -g 10001 -S app && adduser -u 10001 -S app -G app
 WORKDIR /app
 COPY package.json package-lock.json ./
