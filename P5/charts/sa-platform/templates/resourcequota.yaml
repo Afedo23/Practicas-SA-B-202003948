@@ -1,4 +1,3 @@
-{{- if .Values.resourceQuota.managedByHelm | default true }}
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -11,4 +10,3 @@ spec:
     limits.cpu: {{ .Values.resourceQuota.limitsCpu | default "8" | quote }}
     limits.memory: {{ .Values.resourceQuota.limitsMemory | default "8Gi" | quote }}
     pods: {{ .Values.resourceQuota.maxPods | default "40" | quote }}
-{{- end }}
