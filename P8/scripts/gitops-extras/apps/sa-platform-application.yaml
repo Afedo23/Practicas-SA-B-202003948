@@ -1,0 +1,38 @@
+# Aplicacion de ArgoCD para sa-platform (Practica 8).
+# Se aplica UNA sola vez a mano (o via terraform/argocd-bootstrap), no la toca
+# el pipeline. A partir de aqui, ArgoCD vigila este mismo repo GitOps y es el
+# UNICO componente que aplica cambios al cluster.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sa-platform-p8
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    # TODO: debe coincidir EXACTO con REPO_GITOPS de tu p8.conf.
+    repoURL: https://github.com/Afedo23/software-avanzado-gitops.git
+    targetRevision: main
+    path: manifests
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sa-p8
+
+  # Kyverno completa por su cuenta campos por defecto en cada regla de sus ClusterPolicy;
+  # sin esto ArgoCD mostraria la aplicacion como OutOfSync de forma permanente.
+  ignoreDifferences:
+    - group: kyverno.io
+      kind: ClusterPolicy
+      jqPathExpressions:
+        - .spec.rules[]?.skipBackgroundRequests
+        - .spec.rules[]?.validate?.allowExistingViolations
+
+  syncPolicy:
+    automated:
+      prune: true      # borra del cluster lo que ya no esta declarado en Git
+      selfHeal: true    # revierte ediciones manuales hechas fuera de Git
+    syncOptions:
+      - CreateNamespace=false   # el namespace sa-p8 lo crea Terraform (P8/terraform), no ArgoCD
+      - RespectIgnoreDifferences=true

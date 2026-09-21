@@ -1,0 +1,40 @@
+# Endurecimiento del punto de entrada: sin root, sin escalada de privilegios, FS de solo lectura.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sa-p8-require-nonroot-api-gateway
+  annotations:
+    policies.kyverno.io/title: api-gateway sin privilegios
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Los pods del api-gateway deben correr como no-root, sin escalada de
+      privilegios y con el sistema de archivos raiz en solo lectura.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  admission: true
+  emitWarning: false
+  failurePolicy: Ignore
+  rules:
+    - name: nonroot-readonly-fs
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sa-p8]
+              selector:
+                matchLabels:
+                  app: api-gateway
+      validate:
+        message: "api-gateway debe usar runAsNonRoot, allowPrivilegeEscalation=false y readOnlyRootFilesystem=true."
+        allowExistingViolations: true
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true

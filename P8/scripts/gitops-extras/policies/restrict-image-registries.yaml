@@ -1,0 +1,33 @@
+# Cadena de suministro: solo se ejecutan imagenes del registro propio y la imagen de las pruebas.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sa-p8-restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restringir registros de imagenes
+    policies.kyverno.io/category: Supply Chain
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Solo se admiten imagenes de ghcr.io/afedo23 (publicadas y firmadas por el
+      pipeline) y curlimages/curl (Job de analisis del canary).
+spec:
+  validationFailureAction: Enforce
+  background: true
+  admission: true
+  emitWarning: false
+  failurePolicy: Ignore
+  rules:
+    - name: allowed-registries
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sa-p8]
+      validate:
+        message: "Imagen no permitida: use ghcr.io/afedo23/* (o curlimages/curl para las pruebas)."
+        allowExistingViolations: true
+        pattern:
+          spec:
+            containers:
+              - image: "ghcr.io/afedo23/* | docker.io/curlimages/* | curlimages/*"

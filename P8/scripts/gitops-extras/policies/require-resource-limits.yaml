@@ -1,0 +1,36 @@
+# Estabilidad: ningun contenedor arranca sin limites de CPU y memoria.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sa-p8-require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Exigir limites de recursos
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Cada contenedor del namespace sa-p8 debe tener limites de CPU y memoria,
+      de modo que ninguno pueda agotar los recursos del nodo.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  admission: true
+  emitWarning: false
+  failurePolicy: Ignore
+  rules:
+    - name: containers-must-have-limits
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sa-p8]
+      validate:
+        message: "Los contenedores deben definir limits.cpu y limits.memory."
+        allowExistingViolations: true
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"

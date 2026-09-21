@@ -1,0 +1,47 @@
+# Cadena de suministro: toda imagen debe llevar un tag explicito e inmutable por convencion.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sa-p8-disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Prohibir tags mutables
+    policies.kyverno.io/category: Supply Chain
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Las imagenes del namespace sa-p8 deben declarar un tag explicito y no pueden
+      usar la etiqueta mutable latest, para que cada despliegue sea reproducible.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  admission: true
+  emitWarning: false
+  failurePolicy: Ignore
+  rules:
+    - name: require-explicit-tag
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sa-p8]
+      validate:
+        message: "Toda imagen debe declarar un tag explicito (nombre:tag)."
+        allowExistingViolations: true
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+    - name: block-mutable-tag
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sa-p8]
+      validate:
+        message: "No se permite la etiqueta mutable latest; use una version semantica."
+        allowExistingViolations: true
+        pattern:
+          spec:
+            containers:
+              - image: "!*latest"
