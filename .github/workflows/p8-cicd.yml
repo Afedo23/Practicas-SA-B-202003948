@@ -109,7 +109,7 @@ jobs:
         working-directory: P5/charts/sa-platform
         run: |
           helm lint . -f values-aws.yaml
-          helm lint . -f values-p8.yaml
+          helm lint . -f values-dev.yaml
 
   # ----------------------------------------------------------------
   # 4) Build + Trivy (bloqueante) + SBOM + firma Cosign + push
