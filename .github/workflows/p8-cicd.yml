@@ -11,9 +11,15 @@ name: P8 - GitOps CI (build, scan, sign, PR)
 #   7) abre un Pull Request automatico al repo GitOps con la nueva version
 #
 # El unico componente que aplica cambios al cluster es ArgoCD (fuera de este
+<<<<<<< HEAD
 # pipeline). Por eso aqui no hay ningun comando de despliegue directo al
 # cluster ni credenciales de acceso al mismo: el pipeline solo publica
 # imagenes y abre un Pull Request.
+=======
+# pipeline). Por eso aqui NO hay kubectl apply/set image/patch, NO hay
+# helm upgrade/install, y NO se maneja ningun kubeconfig ni credencial de
+# administracion del cluster.
+>>>>>>> origin/main
 # ---------------------------------------------------------------------------
 
 on:
@@ -109,7 +115,11 @@ jobs:
         working-directory: P5/charts/sa-platform
         run: |
           helm lint . -f values-aws.yaml
+<<<<<<< HEAD
           helm lint . -f values-dev.yaml
+=======
+          helm lint . -f values-p8.yaml
+>>>>>>> origin/main
 
   # ----------------------------------------------------------------
   # 4) Build + Trivy (bloqueante) + SBOM + firma Cosign + push
@@ -259,4 +269,8 @@ jobs:
             PR automatico generado por el pipeline de P8.
             Version: ${{ steps.vars.outputs.version }}
             Commit origen: ${{ github.sha }}
+<<<<<<< HEAD
             Imagenes firmadas con Cosign y escaneadas con Trivy (0 CVE CRITICAL).
+=======
+            Imagenes firmadas con Cosign y escaneadas con Trivy (0 CVE CRITICAL).
+>>>>>>> origin/main

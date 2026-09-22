@@ -2,6 +2,11 @@
 # Imagen minima, no-root, filesystem de solo lectura.
 FROM nginx:1.27-alpine
 
+# Actualiza paquetes del SO a los ultimos parches de seguridad de Alpine
+# (evita CVEs ya corregidos por upstream pero no incluidos en la capa
+# base cacheada de Docker Hub -- esto es lo que Trivy detecto).
+RUN apk update && apk upgrade --no-cache
+
 RUN addgroup -g 10001 -S app && adduser -u 10001 -S app -G app \
     && rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf \
     && mkdir -p /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp \
