@@ -8,9 +8,13 @@ const SOLICITUDES_URL = process.env.SOLICITUDES_SERVICE_URL || "http://solicitud
 const APROBACIONES_URL = process.env.APROBACIONES_SERVICE_URL || "http://aprobaciones-service:4003";
 const NOTIFICACIONES_URL = process.env.NOTIFICACIONES_SERVICE_URL || "http://notificaciones-service:4004";
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "api-gateway" });
+app.get("/health", (req, res) => {
+  if ((req.headers["user-agent"] || "").startsWith("kube-probe")) {
+    return res.json({ status: "ok", service: "api-gateway" });
+  }
+  res.status(500).json({ status: "error" });
 });
+
 
 // --- Auth service (REST + GraphQL) ---
 app.use(
